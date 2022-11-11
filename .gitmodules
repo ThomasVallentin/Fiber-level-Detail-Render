@@ -1,0 +1,11 @@
+[submodule "third-party/GLFW"]
+	path = third-party/GLFW
+	url = https://github.com/glfw/glfw.git
+	branch = 3.3-stable
+[submodule "third-party/ImGui"]
+	path = third-party/ImGui
+	url = https://github.com/ocornut/imgui.git
+	branch = docking
+[submodule "third-party/glm"]
+	path = third-party/glm
+	url = https://github.com/g-truc/glm.git
