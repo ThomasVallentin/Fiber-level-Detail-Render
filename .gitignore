@@ -1,0 +1,6 @@
+build/
+
+third-party/glad/include
+third-party/glad/src
+
+.vscode/
