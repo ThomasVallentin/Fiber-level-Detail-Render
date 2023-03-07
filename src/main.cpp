@@ -7,8 +7,6 @@
 
 #include <imgui.h>
 
-#include <glm/gtx/string_cast.hpp>
-
 #include <iostream>
 
 

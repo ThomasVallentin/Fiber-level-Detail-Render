@@ -41,6 +41,11 @@ public:
 
 };
 
+#ifdef DEBUG
+#define ENABLE_DEBUG
+#define ENABLE_ASSERTS
+#endif
+
 #ifdef ENABLE_DEBUG
 #define LOG_DEBUG(...)   Logger::debug(__VA_ARGS__)
 #else
