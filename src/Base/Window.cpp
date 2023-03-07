@@ -314,7 +314,7 @@ void Window::SetEventCallback(const std::function<void(Event *)> &eventCallback)
     m_eventCallback = eventCallback;
 }
 
-double Window::GetInternalTime() const 
+double Window::GetTime() const 
 {
     return glfwGetTime();
 }

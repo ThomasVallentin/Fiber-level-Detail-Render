@@ -47,7 +47,7 @@ public:
     inline std::function<void(Event*)> GetEventCallback() const { return m_eventCallback; };
 
     inline GLFWwindow* GetInternalWindow() const { return m_window; }
-    double GetInternalTime() const;
+    double GetTime() const;
 
     bool ShouldClose() const;
 
