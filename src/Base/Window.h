@@ -39,7 +39,6 @@ public:
     int GetHeight() const;
     
     void Update();
-    void SwapBuffer() const; 
 
     void SetTitle(const std::string& title);
 
