@@ -17,18 +17,24 @@ Texture2D::Texture2D(const GLuint& id) :
 
 Texture2D::Texture2D(const uint32_t& width, 
                      const uint32_t& height,
-                     const GLenum& internalFormat) : 
+                     const GLenum& internalFormat,
+                     const bool& immutable) : 
         m_width(width),
         m_height(height),
         m_internalFormat(internalFormat) 
 {
     glGenTextures(1, &m_id);
     glBindTexture(GL_TEXTURE_2D, m_id);
-
-    // glTexStorage2D(GL_TEXTURE_2D, 1, m_internalFormat, m_width, m_height);
-    glTexImage2D(GL_TEXTURE_2D, 0, m_internalFormat, 
-                 m_width, m_height, 0, 
-                 GL_RGB, GL_UNSIGNED_BYTE, nullptr);
+    if (immutable)
+    {
+        glTexStorage2D(GL_TEXTURE_2D, 1, m_internalFormat, m_width, m_height);
+    }
+    else 
+    {
+        glTexImage2D(GL_TEXTURE_2D, 0, m_internalFormat, 
+                    m_width, m_height, 0, 
+                    GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    }
 }
 
 Texture2D::Texture2D(const uint32_t& width, 
@@ -36,16 +42,27 @@ Texture2D::Texture2D(const uint32_t& width,
                      const GLenum& internalFormat,
                      const GLenum& dataFormat,
                      const GLenum& dataType,
-                     const void* data) : 
+                     const void* data,
+                     const bool& immutable) : 
         m_width(width),
         m_height(height),
         m_internalFormat(internalFormat) 
 {
     glGenTextures(1, &m_id);
     glBindTexture(GL_TEXTURE_2D, m_id);
+    if (immutable)
+    {
+        glTexStorage2D(GL_TEXTURE_2D, 1, m_internalFormat, m_width, m_height);
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 
+                        m_width, m_height, 
+                        dataFormat, dataType, data);
+    }
+    else 
+    {
     glTexImage2D(GL_TEXTURE_2D, 0, m_internalFormat, 
                  m_width, m_height, 0, 
                  dataFormat, dataType, data);
+    }
 }
 
 Texture2D::~Texture2D() {
@@ -62,8 +79,9 @@ void Texture2D::Unbind() const {
 }
 
 void Texture2D::Resize(const uint32_t& width, const uint32_t& height) {
+    // /!\ Resize is only supported for mutable textures 
     glTexImage2D(GL_TEXTURE_2D, 0, m_internalFormat, 
-                 m_width, m_height, 0, 
+                 width, height, 0, 
                  GL_RGB, GL_UNSIGNED_BYTE, nullptr);
     m_width = width;
     m_height = height;
@@ -95,16 +113,24 @@ void Texture2D::SetData(const uint32_t& width, const uint32_t& height,
     m_height = height;
     m_internalFormat = internalFormat;
 }
+void Texture2D::GetData(const GLenum& pixelFormat, const GLenum& pixelType, const uint32_t& size, void* pixels) const
+{
+    glGetnTexImage(GL_TEXTURE_2D, 0, pixelFormat, pixelType, size, pixels);
+}
+
+void Texture2D::GetData(const GLenum& pixelFormat, const GLenum& pixelType, void* pixels) const
+{
+    glGetTexImage(GL_TEXTURE_2D, 0, pixelFormat, pixelType, pixels);
+}
 
 void Texture2D::SetFilteringFlags(const GLenum& minFilter, const GLenum& magFilter) const {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, minFilter);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, magFilter);
 }
 
-void Texture2D::SetWrappingFlags(const GLenum& wrapS, const GLenum& wrapT, const GLenum& wrapR) const {
+void Texture2D::SetWrappingFlags(const GLenum& wrapS, const GLenum& wrapT) const {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrapS);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrapT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R, wrapR);
 }
 
 // Todo: drive this directly through the filtering flags
@@ -116,19 +142,6 @@ void Texture2D::EnableMipmaps(const bool& enable) {
     m_mipmaps = enable;
 }
 
-std::vector<std::shared_ptr<Texture2D>> Texture2D::GenTextures(const uint32_t& count) {
-    GLuint ids[count];
-    glGenTextures(count, ids);
-
-    std::vector<std::shared_ptr<Texture2D>> textures(count);
-    for (size_t i=0 ; i < count ; ++i)
-    {
-        // Note: we're not using here make_shared since this constructor is private
-        textures[i] = std::shared_ptr<Texture2D>(new Texture2D(ids[i])); 
-    }
-
-    return textures;
-}
 
 void Texture2D::ClearUnit(const uint32_t& unit) {
     glActiveTexture(GL_TEXTURE0 + unit);

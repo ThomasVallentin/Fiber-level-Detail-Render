@@ -42,7 +42,7 @@ void Framebuffer::Resize(const uint32_t& width, const uint32_t& height) {
 
 void Framebuffer::AddColorAttachment(const std::shared_ptr<Texture2D>& attachment) {
     GLenum drawBuffer = GL_COLOR_ATTACHMENT0 + m_colorAttachments.size();
-    glFramebufferTexture2D(GL_FRAMEBUFFER, drawBuffer, GL_TEXTURE_2D, attachment->getId(), 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, drawBuffer, GL_TEXTURE_2D, attachment->GetId(), 0);
     m_colorAttachments.push_back(attachment);
     m_drawBuffers.push_back(drawBuffer);
 
@@ -50,7 +50,7 @@ void Framebuffer::AddColorAttachment(const std::shared_ptr<Texture2D>& attachmen
 }
 
 void Framebuffer::SetDepthAttachment(const std::shared_ptr<Texture2D>& attachment) {
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, attachment->getId(), 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, attachment->GetId(), 0);
     m_depthAttachment = attachment;
 }
 
@@ -80,5 +80,5 @@ void Framebuffer::Blit(const GLuint& destFrameBufferId) const
 
 void Framebuffer::Blit(const std::shared_ptr<Framebuffer>& destination) const
 {
-    Blit(destination->getId());
+    Blit(destination->GetId());
 }

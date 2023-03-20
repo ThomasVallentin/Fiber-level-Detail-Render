@@ -1,3 +1,5 @@
+#include "SelfShadows.h"
+
 #include "Base/Window.h"
 #include "Base/Event.h"
 #include "Base/Resolver.h"
@@ -37,14 +39,12 @@ int main(int argc, char *argv[])
 
     auto window = Window({1280, 720, "Fiber-Level Detail Render"});
 
-    Framebuffer selfShadowsFB(1280, 720);
 
     auto eventCallback = [&](Event* event) {
         switch (event->GetType()) 
         {
             case EventType::WindowResized: {
                 auto resizeEvent = dynamic_cast<WindowResizedEvent*>(event);
-                selfShadowsFB.Resize(resizeEvent->GetWidth(), resizeEvent->GetHeight());
                 glViewport(0, 0, resizeEvent->GetWidth(), resizeEvent->GetHeight());
                 camera.SetViewportSize(resizeEvent->GetWidth(), resizeEvent->GetHeight());
                 break;
@@ -89,41 +89,16 @@ int main(int argc, char *argv[])
 
     glPatchParameteri(GL_PATCH_VERTICES, 4);
 
-    Shader test3DShader(resolver.Resolve("src/shaders/fullScreen.vs.glsl").c_str(),
-                        resolver.Resolve("src/shaders/test3DTexture.fs.glsl").c_str());
+    Shader slice3DShader(resolver.Resolve("src/shaders/fullScreen.vs.glsl").c_str(),
+                         resolver.Resolve("src/shaders/3DTextureSlice.fs.glsl").c_str());
 
-    Shader computeSelfShadowsShader(resolver.Resolve("src/shaders/fullScreen.vs.glsl").c_str(),
-                                    resolver.Resolve("src/shaders/selfShadows.fs.glsl").c_str());
-
-    // Test 3d texture
+    // Self Shadows
+    SelfShadowsSettings selfShadowsSettings{512, 16};
+    std::shared_ptr<Texture3D> selfShadowsTexture = SelfShadows::GenerateTexture(selfShadowsSettings);    
+    
     GLuint dummyVAO;
     glGenVertexArrays(1, &dummyVAO);
-
-    GLuint texture3D;
-    glGenTextures(1, &texture3D);
-    glBindTexture(GL_TEXTURE_3D, texture3D);
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);	// set texture wrapping to GL_REPEAT (default wrapping method)
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_BORDER);
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
-    int width = 4, height = 4, depth = 2;
-    glTexImage3D(GL_TEXTURE_3D, 0, GL_R8, width, height, depth, 0, GL_RED, GL_UNSIGNED_BYTE, nullptr);
-    std::vector<uint8_t> pixels3D = {255, 0, 255, 0,
-                                     255, 0, 255, 0,
-                                     255, 0, 255, 0,
-                                     255, 0, 255, 0};
-    glTexSubImage3D(GL_TEXTURE_3D, 0, 0, 0, 0, width, height, depth, GL_RED, GL_UNSIGNED_BYTE, pixels3D.data());
-    pixels3D = {0, 255, 0, 255,
-                0, 255, 0, 255,
-                0, 255, 0, 255,
-                0, 255, 0, 255};
-    glTexSubImage3D(GL_TEXTURE_3D, 0, 0, 0, 1, width, height, 1, GL_RED, GL_UNSIGNED_BYTE, pixels3D.data());
-
-    selfShadowsFB.Bind();
-    selfShadowsFB.AddColorAttachment(std::make_shared<Texture2D>(1280, 720, GL_R8));
-    selfShadowsFB.Unbind();
+    glBindVertexArray(dummyVAO);
 
     while (!window.ShouldClose()) {
         float currentTime = static_cast<float>(glfwGetTime());
@@ -160,19 +135,17 @@ int main(int argc, char *argv[])
         // shader.setFloat("R[3]", 0.2f); // distance from fiber i to ply center
 
         // glDrawArrays(GL_PATCHES, 0, openFibersCP[0].size());
+        // glDrawArrays(GL_PATCHES, 0, openFibersCP[0].size());
         
-        // Render to texture
-        selfShadowsFB.Bind();
-
-        computeSelfShadowsShader.use();
+        // Render slices of selfShadow to screen
+        slice3DShader.use();
+        selfShadowsTexture->Attach(0);
+        slice3DShader.setInt("uInputTexture", 0);
+        slice3DShader.setFloat("uDepth", std::sin(currentTime) * 0.5 + 0.5);
 
         glBindVertexArray(dummyVAO);
         glDrawArrays(GL_TRIANGLES, 0, 3);
         glBindVertexArray(0);
-
-
-        selfShadowsFB.Blit(0);
-        selfShadowsFB.Unbind();
 
         // Start the Dear ImGui frame
         ImGui_ImplOpenGL3_NewFrame();

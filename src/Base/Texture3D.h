@@ -1,5 +1,5 @@
-#ifndef TEXTURE2D_H
-#define TEXTURE2D_H
+#ifndef TEXTURE3D_H
+#define TEXTURE3D_H
 
 #include <glad/glad.h>
 
@@ -8,23 +8,25 @@
 #include <stdint.h>
 
 
-class Texture2D
+class Texture3D
 {
 public:
-    Texture2D(); 
-    Texture2D(const uint32_t& width, 
+    Texture3D(); 
+    Texture3D(const uint32_t& width, 
               const uint32_t& height,
+              const uint32_t& depth,
               const GLenum& internalFormat,
               const bool& immutable=false);
-    Texture2D(const uint32_t& width, 
+    Texture3D(const uint32_t& width, 
               const uint32_t& height,
+              const uint32_t& depth,
               const GLenum& internalFormat,
               const GLenum& dataFormat,
               const GLenum& dataType,
               const void* data,
               const bool& immutable=false);
-    Texture2D(const GLuint& id);
-    ~Texture2D();
+    Texture3D(const GLuint& id);
+    ~Texture3D();
 
     inline GLuint GetId() { return m_id; }
     
@@ -34,10 +36,11 @@ public:
 
     inline uint32_t GetWidth() const { return m_width; } 
     inline uint32_t GetHeight() const { return m_height; } 
-    void Resize(const uint32_t& width, const uint32_t& height);
+    inline uint32_t GetDepth() const { return m_depth; } 
+    void Resize(const uint32_t& width, const uint32_t& height, const uint32_t& depth);
 
     void SetData(const void* data, const GLenum& dataFormat, const GLenum& dataType);
-    void SetData(const uint32_t& width, const uint32_t& height, 
+    void SetData(const uint32_t& width, const uint32_t& height, const uint32_t& depth, 
                  const GLenum& internalFormat, 
                  const GLenum& dataFormat, 
                  const GLenum& dataType, 
@@ -47,15 +50,16 @@ public:
 
     void SetFilteringFlags(const GLenum& minFilter, const GLenum& magFilter) const;
     void SetWrappingFlags(const GLenum& wrapS, 
-                          const GLenum& wrapT) const;
+                          const GLenum& wrapT, 
+                          const GLenum& wrapR) const;
     void EnableMipmaps(const bool& enable);
 
     static void ClearUnit(const uint32_t& unit);
 
 private:
-
     GLuint m_id;
-    uint32_t m_width, m_height;
+
+    uint32_t m_width, m_height, m_depth;
     GLenum m_internalFormat;
     bool m_mipmaps = false;
 };

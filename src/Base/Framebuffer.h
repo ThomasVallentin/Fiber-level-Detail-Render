@@ -10,7 +10,7 @@ public:
     Framebuffer(const uint32_t& width, const uint32_t& height);
     ~Framebuffer();
 
-    inline GLuint getId() const { return m_id; }
+    inline GLuint GetId() const { return m_id; }
 
     void Bind();
     void Unbind();
