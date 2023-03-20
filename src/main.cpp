@@ -2,6 +2,7 @@
 #include "Base/Event.h"
 #include "Base/Resolver.h"
 #include "Base/Shader.h"
+#include "Base/Framebuffer.h"
 #include "Base/Camera.h"
 #include "Base/bccReader.h"
 
@@ -34,14 +35,16 @@ int main(int argc, char *argv[])
                                     .parent_path()
                                     .parent_path());
 
-    auto win = Window({1280, 720, "Fiber-Level Detail Render"});
-    auto window = win.GetInternalWindow();
+    auto window = Window({1280, 720, "Fiber-Level Detail Render"});
+
+    Framebuffer selfShadowsFB(1280, 720);
 
     auto eventCallback = [&](Event* event) {
         switch (event->GetType()) 
         {
             case EventType::WindowResized: {
                 auto resizeEvent = dynamic_cast<WindowResizedEvent*>(event);
+                selfShadowsFB.Resize(resizeEvent->GetWidth(), resizeEvent->GetHeight());
                 glViewport(0, 0, resizeEvent->GetWidth(), resizeEvent->GetHeight());
                 camera.SetViewportSize(resizeEvent->GetWidth(), resizeEvent->GetHeight());
                 break;
@@ -50,7 +53,7 @@ int main(int argc, char *argv[])
 
         camera.OnEvent(event);
     };
-    win.SetEventCallback(eventCallback);
+    window.SetEventCallback(eventCallback);
 
     /// OPENGL program start here 
 
@@ -118,7 +121,11 @@ int main(int argc, char *argv[])
                 0, 255, 0, 255};
     glTexSubImage3D(GL_TEXTURE_3D, 0, 0, 0, 1, width, height, 1, GL_RED, GL_UNSIGNED_BYTE, pixels3D.data());
 
-    while (!win.ShouldClose()) {
+    selfShadowsFB.Bind();
+    selfShadowsFB.AddColorAttachment(std::make_shared<Texture2D>(1280, 720, GL_R8));
+    selfShadowsFB.Unbind();
+
+    while (!window.ShouldClose()) {
         float currentTime = static_cast<float>(glfwGetTime());
         deltaTime = currentTime - prevTime;
         prevTime = currentTime;
@@ -153,12 +160,19 @@ int main(int argc, char *argv[])
         // shader.setFloat("R[3]", 0.2f); // distance from fiber i to ply center
 
         // glDrawArrays(GL_PATCHES, 0, openFibersCP[0].size());
+        
+        // Render to texture
+        selfShadowsFB.Bind();
 
         computeSelfShadowsShader.use();
 
         glBindVertexArray(dummyVAO);
         glDrawArrays(GL_TRIANGLES, 0, 3);
         glBindVertexArray(0);
+
+
+        selfShadowsFB.Blit(0);
+        selfShadowsFB.Unbind();
 
         // Start the Dear ImGui frame
         ImGui_ImplOpenGL3_NewFrame();
@@ -182,7 +196,7 @@ int main(int argc, char *argv[])
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         
-        win.Update();
+        window.Update();
     }
 
     return 0;
