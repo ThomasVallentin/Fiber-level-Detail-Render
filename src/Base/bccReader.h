@@ -45,7 +45,7 @@ void readBCC(const std::string& filename,std::vector<std::vector<glm::vec3>>& cl
             for (uint64_t cpid = 0 ; cpid < nbCP ; cpid ++ ){
                 glm::vec3 point;
                 fread(&point,sizeof(float),3,pFile);
-                std::cout<<point.x<<" "<<point.y<<" "<<point.z<<std::endl;
+                // std::cout<<point.x<<" "<<point.y<<" "<<point.z<<std::endl;
                 curveData[cpid]=point;
             }
             closedFibersCP.emplace_back(curveData);
@@ -55,7 +55,7 @@ void readBCC(const std::string& filename,std::vector<std::vector<glm::vec3>>& cl
             for (uint64_t cpid = 0 ; cpid < nbCP ; cpid ++ ){
                 glm::vec3 point;
                 fread(&point,sizeof(float),3,pFile);
-                std::cout<<point.x<<" "<<point.y<<" "<<point.z<<std::endl;
+                // std::cout<<point.x<<" "<<point.y<<" "<<point.z<<std::endl;
                 curveData[cpid]=point;
             }
             openFibersCP.emplace_back(curveData);
