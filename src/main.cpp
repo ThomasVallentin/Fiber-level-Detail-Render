@@ -26,7 +26,7 @@ bool firstMouse = true;
 
 // timing
 float deltaTime = 0.0f;
-float lastFrame = 0.0f;
+float prevTime = 0.0f;
 
 int main(int argc, char *argv[])
 {
@@ -86,41 +86,79 @@ int main(int argc, char *argv[])
 
     glPatchParameteri(GL_PATCH_VERTICES, 4);
 
+    Shader test3DShader(resolver.Resolve("src/shaders/fullScreen.vs.glsl").c_str(),
+                        resolver.Resolve("src/shaders/test3DTexture.fs.glsl").c_str());
+
+    Shader computeSelfShadowsShader(resolver.Resolve("src/shaders/fullScreen.vs.glsl").c_str(),
+                                    resolver.Resolve("src/shaders/selfShadows.fs.glsl").c_str());
+
+    // Test 3d texture
+    GLuint dummyVAO;
+    glGenVertexArrays(1, &dummyVAO);
+
+    GLuint texture3D;
+    glGenTextures(1, &texture3D);
+    glBindTexture(GL_TEXTURE_3D, texture3D);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);	// set texture wrapping to GL_REPEAT (default wrapping method)
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_BORDER);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+    int width = 4, height = 4, depth = 2;
+    glTexImage3D(GL_TEXTURE_3D, 0, GL_R8, width, height, depth, 0, GL_RED, GL_UNSIGNED_BYTE, nullptr);
+    std::vector<uint8_t> pixels3D = {255, 0, 255, 0,
+                                     255, 0, 255, 0,
+                                     255, 0, 255, 0,
+                                     255, 0, 255, 0};
+    glTexSubImage3D(GL_TEXTURE_3D, 0, 0, 0, 0, width, height, depth, GL_RED, GL_UNSIGNED_BYTE, pixels3D.data());
+    pixels3D = {0, 255, 0, 255,
+                0, 255, 0, 255,
+                0, 255, 0, 255,
+                0, 255, 0, 255};
+    glTexSubImage3D(GL_TEXTURE_3D, 0, 0, 0, 1, width, height, 1, GL_RED, GL_UNSIGNED_BYTE, pixels3D.data());
+
     while (!win.ShouldClose()) {
-        float currentFrame = static_cast<float>(glfwGetTime());
-        deltaTime = currentFrame - lastFrame;
-        lastFrame = currentFrame;
+        float currentTime = static_cast<float>(glfwGetTime());
+        deltaTime = currentTime - prevTime;
+        prevTime = currentTime;
         
         camera.Update();
 
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        shader.use();
+        // shader.use();
         
-        glm::mat4 projection = camera.GetProjectionMatrix();
-        glm::mat4 view = camera.GetViewMatrix();
-        glm::mat4 model = glm::mat4(1.0f);
-        shader.setMat4("projection", projection);
-        shader.setMat4("view", view);
-        shader.setMat4("model", model);
+        // glm::mat4 projection = camera.GetProjectionMatrix();
+        // glm::mat4 view = camera.GetViewMatrix();
+        // glm::mat4 model = glm::mat4(1.0f);
+        // shader.setMat4("projection", projection);
+        // shader.setMat4("view", view);
+        // shader.setMat4("model", model);
     
-        glBindVertexArray(VAO);     
+        // glBindVertexArray(VAO);     
 
-        shader.setFloat("R_ply", 0.1f);
-        shader.setFloat("Rmin", 0.1f);
-        shader.setFloat("Rmax", 0.2f);
-        shader.setFloat("theta", 1.0f);
-        shader.setFloat("s", 2.0f);  // length of rotation
-        shader.setFloat("eN", 1.0f); // ellipse scaling factor along Normal
-        shader.setFloat("eB", 1.0f); // ellipse scaling factor along Bitangent
+        // shader.setFloat("R_ply", 0.1f);
+        // shader.setFloat("Rmin", 0.1f);
+        // shader.setFloat("Rmax", 0.2f);
+        // shader.setFloat("theta", 1.0f);
+        // shader.setFloat("s", 2.0f);  // length of rotation
+        // shader.setFloat("eN", 1.0f); // ellipse scaling factor along Normal
+        // shader.setFloat("eB", 1.0f); // ellipse scaling factor along Bitangent
 
-        shader.setFloat("R[0]", 0.1f); // distance from fiber i to ply center
-        shader.setFloat("R[1]", 0.15f); // distance from fiber i to ply center
-        shader.setFloat("R[2]", 0.05f); // distance from fiber i to ply center
-        shader.setFloat("R[3]", 0.2f); // distance from fiber i to ply center
+        // shader.setFloat("R[0]", 0.1f); // distance from fiber i to ply center
+        // shader.setFloat("R[1]", 0.15f); // distance from fiber i to ply center
+        // shader.setFloat("R[2]", 0.05f); // distance from fiber i to ply center
+        // shader.setFloat("R[3]", 0.2f); // distance from fiber i to ply center
 
-        glDrawArrays(GL_PATCHES, 0, openFibersCP[0].size());
+        // glDrawArrays(GL_PATCHES, 0, openFibersCP[0].size());
+
+        computeSelfShadowsShader.use();
+
+        glBindVertexArray(dummyVAO);
+        glDrawArrays(GL_TRIANGLES, 0, 3);
+        glBindVertexArray(0);
 
         // Start the Dear ImGui frame
         ImGui_ImplOpenGL3_NewFrame();
