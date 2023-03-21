@@ -32,8 +32,8 @@ Texture2D::Texture2D(const uint32_t& width,
     else 
     {
         glTexImage2D(GL_TEXTURE_2D, 0, m_internalFormat, 
-                    m_width, m_height, 0, 
-                    GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+                     m_width, m_height, 0, 
+                     GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
     }
 }
 
@@ -59,9 +59,9 @@ Texture2D::Texture2D(const uint32_t& width,
     }
     else 
     {
-    glTexImage2D(GL_TEXTURE_2D, 0, m_internalFormat, 
-                 m_width, m_height, 0, 
-                 dataFormat, dataType, data);
+        glTexImage2D(GL_TEXTURE_2D, 0, m_internalFormat, 
+                     m_width, m_height, 0, 
+                     dataFormat, dataType, data);
     }
 }
 
@@ -147,3 +147,29 @@ void Texture2D::ClearUnit(const uint32_t& unit) {
     glActiveTexture(GL_TEXTURE0 + unit);
     glBindTexture(GL_TEXTURE_2D, 0);
 }
+
+Texture2DPtr Texture2D::Create(const uint32_t& width, 
+                               const uint32_t& height,
+                               const GLenum& internalFormat,
+                               const bool& immutable)
+                                    
+{
+    return std::make_shared<Texture2D>(width, height, internalFormat, immutable);
+}   
+
+Texture2DPtr Texture2D::Create(const uint32_t& width,
+                               const uint32_t& height,
+                               const GLenum& internalFormat,
+                               const GLenum& dataFormat,
+                               const GLenum& dataType,
+                               const void* data,
+                               const bool& immutable)
+{
+    return std::make_shared<Texture2D>(width, 
+                                       height, 
+                                       internalFormat, 
+                                       dataFormat,
+                                       dataType,
+                                       data,
+                                       immutable);
+}                                      

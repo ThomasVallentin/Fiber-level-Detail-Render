@@ -2,7 +2,10 @@
 #define FRAMEBUFFER_H
 
 #include "Texture2D.h"
+#include <memory>
 
+class Framebuffer;
+using FramebufferPtr = std::shared_ptr<Framebuffer>;
 
 class Framebuffer
 {
@@ -19,22 +22,25 @@ public:
     inline uint32_t GetHeight() const { return m_height; } 
     void Resize(const uint32_t& width, const uint32_t& height);
 
-    void AddColorAttachment(const std::shared_ptr<Texture2D>& attachment);
-    void SetDepthAttachment(const std::shared_ptr<Texture2D>& attachment);
-    std::shared_ptr<Texture2D> GetColorAttachment(const uint32_t index) const;
-    std::shared_ptr<Texture2D> GetDepthAttachment() const;
-
+    void AddColorAttachment(const Texture2DPtr& attachment);
+    void SetDepthAttachment(const Texture2DPtr& attachment, const bool& depthStencil=false);
+    Texture2DPtr GetColorAttachment(const uint32_t index) const;
+    Texture2DPtr GetDepthAttachment() const;
+    void UpdateBuffers();
+    
     void Blit(const GLuint& destId) const;
-    void Blit(const std::shared_ptr<Framebuffer>& destination) const;
+    void Blit(const FramebufferPtr& destination) const;
+
+    static FramebufferPtr Create(const uint32_t& width, const uint32_t& height);
 
 private:
     GLuint m_id;
 
     uint32_t m_width, m_height;
 
-    std::vector<std::shared_ptr<Texture2D>> m_colorAttachments;
+    std::vector<Texture2DPtr> m_colorAttachments;
     std::vector<GLenum> m_drawBuffers;
-    std::shared_ptr<Texture2D> m_depthAttachment;
+    Texture2DPtr m_depthAttachment;
 };
 
 

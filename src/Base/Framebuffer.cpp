@@ -40,7 +40,7 @@ void Framebuffer::Resize(const uint32_t& width, const uint32_t& height) {
     m_height = height;
 }
 
-void Framebuffer::AddColorAttachment(const std::shared_ptr<Texture2D>& attachment) {
+void Framebuffer::AddColorAttachment(const Texture2DPtr& attachment) {
     GLenum drawBuffer = GL_COLOR_ATTACHMENT0 + m_colorAttachments.size();
     glFramebufferTexture2D(GL_FRAMEBUFFER, drawBuffer, GL_TEXTURE_2D, attachment->GetId(), 0);
     m_colorAttachments.push_back(attachment);
@@ -49,13 +49,24 @@ void Framebuffer::AddColorAttachment(const std::shared_ptr<Texture2D>& attachmen
     glDrawBuffers(m_drawBuffers.size(), m_drawBuffers.data());
 }
 
-void Framebuffer::SetDepthAttachment(const std::shared_ptr<Texture2D>& attachment) {
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, attachment->GetId(), 0);
+void Framebuffer::SetDepthAttachment(const Texture2DPtr& attachment, const bool& depthStencil) {
+    if (depthStencil)
+    {
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, attachment->GetId(), 0);
+    }
+    else 
+    {
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, attachment->GetId(), 0);
+    }
     m_depthAttachment = attachment;
 }
 
+void Framebuffer::UpdateBuffers()
+{
+    glDrawBuffers(m_drawBuffers.size(), m_drawBuffers.data());
+}
 
-std::shared_ptr<Texture2D> Framebuffer::GetColorAttachment(const uint32_t index) const {
+Texture2DPtr Framebuffer::GetColorAttachment(const uint32_t index) const {
     if (index > m_colorAttachments.size()) {
         return nullptr;
     }
@@ -63,7 +74,7 @@ std::shared_ptr<Texture2D> Framebuffer::GetColorAttachment(const uint32_t index)
     return m_colorAttachments[index];
 }
 
-std::shared_ptr<Texture2D> Framebuffer::GetDepthAttachment() const {
+Texture2DPtr Framebuffer::GetDepthAttachment() const {
     return m_depthAttachment;
 }
 
@@ -78,7 +89,12 @@ void Framebuffer::Blit(const GLuint& destFrameBufferId) const
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, m_id);
 }
 
-void Framebuffer::Blit(const std::shared_ptr<Framebuffer>& destination) const
+void Framebuffer::Blit(const FramebufferPtr& destination) const
 {
     Blit(destination->GetId());
+}
+
+FramebufferPtr Framebuffer::Create(const uint32_t& width, const uint32_t& height)
+{
+    return std::make_shared<Framebuffer>(width, height);
 }

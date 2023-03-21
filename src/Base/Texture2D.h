@@ -8,6 +8,10 @@
 #include <stdint.h>
 
 
+class Texture2D;
+using Texture2DPtr = std::shared_ptr<Texture2D>;
+
+
 class Texture2D
 {
 public:
@@ -50,6 +54,17 @@ public:
                           const GLenum& wrapT) const;
     void EnableMipmaps(const bool& enable);
 
+    static Texture2DPtr Create(const uint32_t& width, 
+                               const uint32_t& height,
+                               const GLenum& internalFormat,
+                               const bool& immutable=false);
+    static Texture2DPtr Create(const uint32_t& width,
+                               const uint32_t& height,
+                               const GLenum& internalFormat,
+                               const GLenum& dataFormat,
+                               const GLenum& dataType,
+                               const void* data,
+                               const bool& immutable=false);    
     static void ClearUnit(const uint32_t& unit);
 
 private:
