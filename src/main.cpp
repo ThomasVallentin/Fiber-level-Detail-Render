@@ -1,10 +1,12 @@
 #include "SelfShadows.h"
+#include "ShadowMap.h"
 
 #include "Base/Window.h"
 #include "Base/Event.h"
 #include "Base/Resolver.h"
 #include "Base/Shader.h"
 #include "Base/Framebuffer.h"
+#include "Base/VertexArray.h"
 #include "Base/Camera.h"
 #include "Base/bccReader.h"
 
@@ -55,51 +57,47 @@ int main(int argc, char *argv[])
     };
     window.SetEventCallback(eventCallback);
 
-    /// OPENGL program start here 
-
+    // Read curves from the BCC file and send them to OpenGL
     std::vector<std::vector<glm::vec3>> closedFibersCP;
     std::vector<std::vector<glm::vec3>> openFibersCP;
     readBCC(resolver.Resolve("resources/fiber.bcc"), closedFibersCP, openFibersCP);
 
-    Shader shader(resolver.Resolve("src/shaders/shader.vs.glsl").c_str(), 
-                  resolver.Resolve("src/shaders/shader.fs.glsl").c_str(),nullptr,
-                  resolver.Resolve("src/shaders/shader.tsc.glsl").c_str(),
-                  resolver.Resolve("src/shaders/shader.tse.glsl").c_str());
-
-    float vertices[] = {
-        -0.75f, -0.0f, 0.0f, // left  
-         -0.25f, 0.25f, 0.0f, // top 
-         0.25f, -0.25f, 0.0f, // bottom 
-         0.75f, -0.0f, 0.0f, // right 
-    }; 
-
-    // see bezier curve definition @ https://www.gatevidyalay.com/bezier-curve-in-computer-graphics-examples/
- 
-    unsigned int VBO, VAO;
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
-    glBindVertexArray(VAO);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, openFibersCP[0].size() * sizeof(glm::vec3), openFibersCP[0].data(), GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0); 
-
-    glBindVertexArray(0); 
-
+    // Send the data to OpenGL
+    auto fibersVertexBuffer = VertexBuffer::Create(openFibersCP[0].data(), 
+                                                   openFibersCP[0].size() * sizeof(glm::vec3));
+    fibersVertexBuffer->SetLayout({{"Position",  3, GL_FLOAT, false}});
+    auto fibersVertexArray = VertexArray::Create();
+    fibersVertexArray->Bind();
+    fibersVertexArray->AddVertexBuffer(fibersVertexBuffer);
+    fibersVertexArray->Unbind();
+    
     glPatchParameteri(GL_PATCH_VERTICES, 4);
 
-    Shader slice3DShader(resolver.Resolve("src/shaders/fullScreen.vs.glsl").c_str(),
-                         resolver.Resolve("src/shaders/3DTextureSlice.fs.glsl").c_str());
+    Shader fiberShader(resolver.Resolve("src/shaders/noProjection3D.vs.glsl").c_str(), 
+                       resolver.Resolve("src/shaders/solidColor.fs.glsl").c_str(),
+                       resolver.Resolve("src/shaders/triangulateLine.gs.glsl").c_str(),
+                       nullptr, 
+                       nullptr);
 
-    // Self Shadows
-    SelfShadowsSettings selfShadowsSettings{512, 16};
-    std::shared_ptr<Texture3D> selfShadowsTexture = SelfShadows::GenerateTexture(selfShadowsSettings);    
-    
     GLuint dummyVAO;
     glGenVertexArrays(1, &dummyVAO);
     glBindVertexArray(dummyVAO);
 
+    // Shadow mapping
+    DirectionalLight directional;
+    ShadowMap shadowMap;
+
+    Shader blitChannelShader(resolver.Resolve("src/shaders/fullScreen.vs.glsl").c_str(), 
+                             resolver.Resolve("src/shaders/blitTextureChannel.fs.glsl").c_str());
+
+    // Self Shadows
+    // SelfShadowsSettings selfShadowsSettings{512, 16};
+    // std::shared_ptr<Texture3D> selfShadowsTexture = SelfShadows::GenerateTexture(selfShadowsSettings);    
+
+    // Shader slice3DShader(resolver.Resolve("src/shaders/fullScreen.vs.glsl").c_str(),
+    //                      resolver.Resolve("src/shaders/3DTextureSlice.fs.glsl").c_str());
+
+    glViewport(0, 0, window.GetWidth(), window.GetHeight());
     while (!window.ShouldClose()) {
         float currentTime = static_cast<float>(glfwGetTime());
         deltaTime = currentTime - prevTime;
@@ -109,39 +107,40 @@ int main(int argc, char *argv[])
 
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-        // shader.use();
         
-        // glm::mat4 projection = camera.GetProjectionMatrix();
-        // glm::mat4 view = camera.GetViewMatrix();
-        // glm::mat4 model = glm::mat4(1.0f);
-        // shader.setMat4("projection", projection);
-        // shader.setMat4("view", view);
-        // shader.setMat4("model", model);
-    
-        // glBindVertexArray(VAO);     
+        // basicShader.use();
+        // basicShader.setMat4("uViewProjMatrix", camera.GetViewProjectionMatrix());
 
-        // shader.setFloat("R_ply", 0.1f);
-        // shader.setFloat("Rmin", 0.1f);
-        // shader.setFloat("Rmax", 0.2f);
-        // shader.setFloat("theta", 1.0f);
-        // shader.setFloat("s", 2.0f);  // length of rotation
-        // shader.setFloat("eN", 1.0f); // ellipse scaling factor along Normal
-        // shader.setFloat("eB", 1.0f); // ellipse scaling factor along Bitangent
-
-        // shader.setFloat("R[0]", 0.1f); // distance from fiber i to ply center
-        // shader.setFloat("R[1]", 0.15f); // distance from fiber i to ply center
-        // shader.setFloat("R[2]", 0.05f); // distance from fiber i to ply center
-        // shader.setFloat("R[3]", 0.2f); // distance from fiber i to ply center
-
-        // glDrawArrays(GL_PATCHES, 0, openFibersCP[0].size());
-        // glDrawArrays(GL_PATCHES, 0, openFibersCP[0].size());
+        // glDrawArrays(GL_LINE_STRIP, 0, openFibersCP[0].size());
         
         // Render slices of selfShadow to screen
-        slice3DShader.use();
-        selfShadowsTexture->Attach(0);
-        slice3DShader.setInt("uInputTexture", 0);
-        slice3DShader.setFloat("uDepth", std::sin(currentTime) * 0.5 + 0.5);
+        // slice3DShader.use();
+        // selfShadowsTexture->Attach(0);
+        // slice3DShader.setInt("uInputTexture", 0);
+        // slice3DShader.setFloat("uDepth", std::sin(currentTime) * 0.5 + 0.5);
+
+        // glBindVertexArray(dummyVAO);
+        // glDrawArrays(GL_TRIANGLES, 0, 3);
+        // glBindVertexArray(0);
+
+        // fiberShader.use();
+        // fiberShader.setMat4("uModelMatrix", glm::mat4(1.0f));
+        // fiberShader.setMat4("uViewMatrix", directional.GetViewMatrix());
+        // fiberShader.setMat4("uProjMatrix", directional.GetProjectionMatrix());
+    
+        directional.SetDirection(camera.GetForwardDirection());
+
+        shadowMap.Begin(directional.GetViewMatrix(), directional.GetProjectionMatrix());
+        {
+            fibersVertexArray->Bind();
+            glDrawArrays(GL_LINE_STRIP, 0, openFibersCP[0].size());
+            fibersVertexArray->Unbind();
+        }
+        shadowMap.End();
+        
+        blitChannelShader.use();
+        shadowMap.GetTexture()->Attach(0);
+        blitChannelShader.setInt("uInput", 0);
 
         glBindVertexArray(dummyVAO);
         glDrawArrays(GL_TRIANGLES, 0, 3);

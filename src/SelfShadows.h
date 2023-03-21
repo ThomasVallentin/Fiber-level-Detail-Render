@@ -40,10 +40,10 @@ private:
     SelfShadows() = delete;
     SelfShadows(const SelfShadows&) = delete;
 
-    static std::shared_ptr<Framebuffer> s_densityFramebuffer;
-    static std::shared_ptr<Framebuffer> s_absorptionFramebuffer;
-    static std::shared_ptr<Shader> s_densityShader;
-    static std::shared_ptr<Shader> s_absorptionShader;
+    static FramebufferPtr s_densityFramebuffer;
+    static FramebufferPtr s_absorptionFramebuffer;
+    static ShaderPtr s_densityShader;
+    static ShaderPtr s_absorptionShader;
 };
 
 
