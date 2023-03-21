@@ -9,12 +9,17 @@
 #include <sstream>
 #include <iostream>
 
+class Shader;
+using ShaderPtr = std::shared_ptr<Shader>;
+
+
 class Shader
 {
 public:
     unsigned int ID;
     // constructor generates the shader on the fly
     // ------------------------------------------------------------------------
+    Shader() : ID(0) {}
     Shader(const char* vertexPath, const char* fragmentPath, const char* geometryPath = nullptr,
            const char* tessControlPath = nullptr, const char* tessEvalPath = nullptr)
     {
