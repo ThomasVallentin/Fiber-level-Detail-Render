@@ -71,10 +71,11 @@ int main(int argc, char *argv[])
     readBCC("../resources/fiber.bcc",closedFibersCP,openFibersCP);
 
     float vertices[] = {
-        -0.75f, -0.0f, 0.0f, // left  
-         -0.25f, 0.25f, 0.0f, // top 
-         0.25f, -0.25f, 0.0f, // bottom 
-         0.75f, -0.0f, 0.0f, // right 
+        -0.75f, -0.0f, 0.0f, // pos1
+         -0.25f, 0.25f, 0.0f, // pos2 
+         0.25f, -0.25f, 0.0f, // pos3 
+         0.75f, -0.0f, 0.0f, // pos4
+         1.0f, 0.2f, 0.0f // pos5
     }; 
 
     // see bezier curve definition @ https://www.gatevidyalay.com/bezier-curve-in-computer-graphics-examples/
@@ -128,6 +129,7 @@ int main(int argc, char *argv[])
 
 
         glDrawArrays(GL_PATCHES,0,4);
+        glDrawArrays(GL_PATCHES,1,4);
 
         // // Start the Dear ImGui frame
         // ImGui_ImplOpenGL3_NewFrame();

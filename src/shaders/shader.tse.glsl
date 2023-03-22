@@ -71,5 +71,5 @@ void main() {
     vec3 B_ply = cross(T_yarn,N_ply);
     vec3 displacement_fiber = R_fiber * (cos(thetaI + u * theta) * N_ply * eN + sin(thetaI +  u * theta) * B_ply * eB);
 
-    gl_Position = projection * view * model * vec4(yarnCenter + displacement_ply + displacement_fiber, 1.0);
+    gl_Position = projection * view * model * vec4(yarnCenter , 1.0);
 }
