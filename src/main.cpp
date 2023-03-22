@@ -63,8 +63,9 @@ int main(int argc, char *argv[])
     readBCC(resolver.Resolve("resources/fiber.bcc"), closedFibersCP, openFibersCP);
 
     // Send the data to OpenGL
+    uint32_t fibersVertexCount = openFibersCP[0].size();
     auto fibersVertexBuffer = VertexBuffer::Create(openFibersCP[0].data(), 
-                                                   openFibersCP[0].size() * sizeof(glm::vec3));
+                                                   fibersVertexCount * sizeof(glm::vec3));
     fibersVertexBuffer->SetLayout({{"Position",  3, GL_FLOAT, false}});
     auto fibersVertexArray = VertexArray::Create();
     fibersVertexArray->Bind();
@@ -84,11 +85,32 @@ int main(int argc, char *argv[])
     glBindVertexArray(dummyVAO);
 
     // Shadow mapping
-    DirectionalLight directional;
-    ShadowMap shadowMap;
+    DirectionalLight directional(glm::normalize(glm::vec3(0.5f, -0.5f, -0.5f)), {0.8f, 0.8f, 0.8f});
+    ShadowMap shadowMap(4096);
 
     Shader blitChannelShader(resolver.Resolve("src/shaders/fullScreen.vs.glsl").c_str(), 
                              resolver.Resolve("src/shaders/blitTextureChannel.fs.glsl").c_str());
+
+    // Simple plane to visualize the casted shadows
+    std::vector<Vertex> planeVertices = {{{-1.0, 0.0, -1.0}, {0.0, 1.0, 0.0}, {0.0, 0.0}},
+                                         {{-1.0, 0.0,  1.0}, {0.0, 1.0, 0.0}, {0.0, 1.0}},
+                                         {{ 1.0, 0.0,  1.0}, {0.0, 1.0, 0.0}, {1.0, 1.0}},
+                                         {{ 1.0, 0.0, -1.0}, {0.0, 1.0, 0.0}, {1.0, 0.0}}};
+    std::vector<uint32_t> planeIndices = {0, 1, 2, 2, 3, 0};
+    auto planeVertexBuffer = VertexBuffer::Create(planeVertices.data(), 
+                                                  planeVertices.size() * sizeof(Vertex));
+    planeVertexBuffer->SetLayout({{"Position",  3, GL_FLOAT, false},
+                                  {"Normal",    3, GL_FLOAT, false},
+                                  {"TexCoord",  2, GL_FLOAT, false}});
+    auto planeIndexBuffer = IndexBuffer::Create(planeIndices.data(), planeIndices.size()); 
+    auto planeVertexArray = VertexArray::Create();
+    planeVertexArray->Bind();
+    planeVertexArray->AddVertexBuffer(planeVertexBuffer);
+    planeVertexArray->SetIndexBuffer(planeIndexBuffer);
+    planeVertexArray->Unbind();
+
+    Shader planeShader(resolver.Resolve("src/shaders/default3D.vs.glsl").c_str(), 
+                       resolver.Resolve("src/shaders/lambert.fs.glsl").c_str());
 
     // Self Shadows
     // SelfShadowsSettings selfShadowsSettings{512, 16};
@@ -108,10 +130,14 @@ int main(int argc, char *argv[])
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         
-        // basicShader.use();
-        // basicShader.setMat4("uViewProjMatrix", camera.GetViewProjectionMatrix());
-
-        // glDrawArrays(GL_LINE_STRIP, 0, openFibersCP[0].size());
+        fiberShader.use();
+        fiberShader.setMat4("uModelMatrix", glm::mat4(1.0f));
+        fiberShader.setMat4("uViewMatrix", camera.GetViewMatrix());
+        fiberShader.setMat4("uProjMatrix", camera.GetProjectionMatrix());
+    
+        fibersVertexArray->Bind();
+        glDrawArrays(GL_LINE_STRIP, 0, fibersVertexCount);
+        fibersVertexArray->Unbind();
         
         // Render slices of selfShadow to screen
         // slice3DShader.use();
@@ -123,28 +149,37 @@ int main(int argc, char *argv[])
         // glDrawArrays(GL_TRIANGLES, 0, 3);
         // glBindVertexArray(0);
 
-        // fiberShader.use();
-        // fiberShader.setMat4("uModelMatrix", glm::mat4(1.0f));
-        // fiberShader.setMat4("uViewMatrix", directional.GetViewMatrix());
-        // fiberShader.setMat4("uProjMatrix", directional.GetProjectionMatrix());
-    
-        directional.SetDirection(camera.GetForwardDirection());
+        // directional.SetDirection(camera.GetForwardDirection());
 
         shadowMap.Begin(directional.GetViewMatrix(), directional.GetProjectionMatrix());
         {
+            // Render all the objects that cast shadows here
             fibersVertexArray->Bind();
-            glDrawArrays(GL_LINE_STRIP, 0, openFibersCP[0].size());
+            glDrawArrays(GL_LINE_STRIP, 0, fibersVertexCount);
             fibersVertexArray->Unbind();
         }
         shadowMap.End();
         
-        blitChannelShader.use();
+        // Render plane
+        planeShader.use();
+        planeShader.setMat4("uModelMatrix", glm::mat4(1.0f));
+        planeShader.setMat4("uViewMatrix", camera.GetViewMatrix());
+        planeShader.setMat4("uProjMatrix", camera.GetProjectionMatrix());
+        planeShader.setMat4("uLightSpaceMatrix", directional.GetProjectionMatrix() * directional.GetViewMatrix());
         shadowMap.GetTexture()->Attach(0);
-        blitChannelShader.setInt("uInput", 0);
+        planeShader.setInt("uShadowMap", 0);
 
-        glBindVertexArray(dummyVAO);
-        glDrawArrays(GL_TRIANGLES, 0, 3);
-        glBindVertexArray(0);
+        planeVertexArray->Bind();
+        glDrawElements(GL_TRIANGLES, planeIndexBuffer->GetCount(), GL_UNSIGNED_INT, nullptr);
+        planeVertexArray->Unbind();
+
+        // // Blit shadow map to the screen
+        // blitChannelShader.use();
+        // shadowMap.GetTexture()->Attach(0);
+        // blitChannelShader.setInt("uInput", 0);
+        // glBindVertexArray(dummyVAO);
+        // glDrawArrays(GL_TRIANGLES, 0, 3);
+        // glBindVertexArray(0);
 
         // Start the Dear ImGui frame
         ImGui_ImplOpenGL3_NewFrame();
