@@ -10,7 +10,8 @@ uniform mat4 uProjMatrix;
 
 out VertexData
 {
-    vec3 position;
+    vec3 viewSpacePosition;    
+    vec4 worldSpacePosition;
     vec3 normal;
     vec2 texCoord;
 } outVertex;
@@ -18,10 +19,14 @@ out VertexData
 
 void main() 
 {
-    vec4 position = uProjMatrix * uViewMatrix * uModelMatrix * vec4(aPosition, 1.0);
-    outVertex.position = position.xyz;
-    // outVertex.normal = (uViewMatrix * uModelMatrix * vec4(aNormal, 1.0)).xyz;
+    vec4 position = uModelMatrix * vec4(aPosition, 1.0);
+    outVertex.worldSpacePosition = position;
+
+    position = uViewMatrix * position;
+    outVertex.viewSpacePosition = position.xyz;
+
+    outVertex.normal = (uViewMatrix * uModelMatrix * vec4(aNormal, 0.0)).xyz;
     outVertex.texCoord = aTexCoord;
 
-    gl_Position = position;
+    gl_Position = uProjMatrix * position;
 }

@@ -19,7 +19,7 @@ void main()
 {
     vec4 position = uViewMatrix * uModelMatrix * vec4(aPosition, 1.0);
     outVertex.position = position.xyz;
-    // outVertex.normal = (uViewMatrix * uModelMatrix * vec4(aNormal, 1.0)).xyz;
+    outVertex.normal = (uViewMatrix * uModelMatrix * vec4(aNormal, 1.0)).xyz;
     outVertex.texCoord = aTexCoord;
 
     gl_Position = position;
