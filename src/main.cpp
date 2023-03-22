@@ -92,10 +92,10 @@ int main(int argc, char *argv[])
                              resolver.Resolve("src/shaders/blitTextureChannel.fs.glsl").c_str());
 
     // Simple plane to visualize the casted shadows
-    std::vector<Vertex> planeVertices = {{{-1.0, 0.0, -1.0}, {0.0, 1.0, 0.0}, {0.0, 0.0}},
-                                         {{-1.0, 0.0,  1.0}, {0.0, 1.0, 0.0}, {0.0, 1.0}},
-                                         {{ 1.0, 0.0,  1.0}, {0.0, 1.0, 0.0}, {1.0, 1.0}},
-                                         {{ 1.0, 0.0, -1.0}, {0.0, 1.0, 0.0}, {1.0, 0.0}}};
+    std::vector<Vertex> planeVertices = {{{-10.0, 0.0, -10.0}, {0.0, 1.0, 0.0}, {0.0, 0.0}},
+                                         {{-10.0, 0.0,  10.0}, {0.0, 1.0, 0.0}, {0.0, 1.0}},
+                                         {{ 10.0, 0.0,  10.0}, {0.0, 1.0, 0.0}, {1.0, 1.0}},
+                                         {{ 10.0, 0.0, -10.0}, {0.0, 1.0, 0.0}, {1.0, 0.0}}};
     std::vector<uint32_t> planeIndices = {0, 1, 2, 2, 3, 0};
     auto planeVertexBuffer = VertexBuffer::Create(planeVertices.data(), 
                                                   planeVertices.size() * sizeof(Vertex));
