@@ -58,7 +58,7 @@ int main(int argc, char *argv[])
 
         camera.OnEvent(event);
     };
-    window.SetEventCallback(eventCallback);
+    window.SetEventCallback(eventCallback);  // Define the event callback of the application
 
     // Read curves from the BCC file and send them to OpenGL
     std::vector<std::vector<glm::vec3>> closedFibersCP;
@@ -227,21 +227,18 @@ int main(int argc, char *argv[])
         // glDrawArrays(GL_TRIANGLES, 0, 3);
         // glBindVertexArray(0);
 
-        // Start the Dear ImGui frame
-        ImGui_ImplOpenGL3_NewFrame();
-        ImGui_ImplGlfw_NewFrame();
-        ImGui::NewFrame();
+            ImGui_ImplOpenGL3_NewFrame();
+            ImGui_ImplGlfw_NewFrame();
+            ImGui::NewFrame();
 
-        auto& io = ImGui::GetIO();
-        ImGui::Begin("Control panel", nullptr);
-        {
-            if (ImGui::CollapsingHeader("Stats", ImGuiTreeNodeFlags_DefaultOpen))
+            auto& io = ImGui::GetIO();
+            ImGui::Begin("Control panel", nullptr);
             {
                 indentedLabel("FPS:");
                 ImGui::SameLine();
                 ImGui::Text("%.1f (%.3fms)", io.Framerate, 1000.0f / io.Framerate);
             }
-        }
+            ImGui::End();
 
         ImGui::End();
 

@@ -71,7 +71,7 @@ private:
 
 // Utility function to draw aligned fields in the UI
 
-inline void indentedLabel(const std::string& label, const float& indent=120.0f) {
+inline void indentedLabel(const std::string& label, const float& indent=140.0f) {
     ImGui::AlignTextToFramePadding();
     float labelWidth = ImGui::CalcTextSize(label.c_str()).x;
     ImGui::SetCursorPosX(indent - labelWidth);

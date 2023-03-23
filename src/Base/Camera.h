@@ -1,7 +1,3 @@
-//
-// Created by Thomas Vallentin on 19/03/2022.
-//
-
 #ifndef CAMERA_H
 #define CAMERA_H
 
@@ -10,6 +6,12 @@
 #include <glm/gtx/quaternion.hpp>
 
 
+//
+// The Camera class is a simple trackball camera controller that offers Maya-like camera controls :
+// - Pan    : Alt + Middle click + Mouse move
+// - Rotate : Alt + Left click   + Mouse move
+// - Zoom   : Alt + Right click  + Mouse move (horizontal)
+//
 class Camera {
 public:
     Camera();
