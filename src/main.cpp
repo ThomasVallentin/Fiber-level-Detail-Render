@@ -1,6 +1,7 @@
 #include "Base/Window.h"
 #include "Base/Event.h"
 #include "Base/Resolver.h"
+#include "Base/Profiler.h"
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -41,41 +42,64 @@ int main(int argc, char *argv[])
     };
     window.SetEventCallback(eventCallback);
 
+    auto& profiler = Profiler::Init(window);
+    std::vector<ProfilingScopeData> profilingScopes;
     while (!window.ShouldClose()) {
-        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        // Making a copy of the profiler data to display it in the UI (so that we display the previous frame stats)
+        profilingScopes = profiler.GetScopes();
+        profiler.Clear();
 
-
-        // (づ｡◕‿‿◕｡)づ    Write fancy code here    ~(˘▾˘~)
-
-
-        // Start the Dear ImGui frame
-        ImGui_ImplOpenGL3_NewFrame();
-        ImGui_ImplGlfw_NewFrame();
-        ImGui::NewFrame();
-
-        auto& io = ImGui::GetIO();
-        ImGui::Begin("Control panel", nullptr);
         {
-            if (ImGui::CollapsingHeader("Stats", ImGuiTreeNodeFlags_DefaultOpen))
-            {
-                indentedLabel("FPS:");
-                ImGui::SameLine();
-                ImGui::Text("%.1f (%.3fms)", io.Framerate, 1000.0f / io.Framerate);
+            // OpenGL Rendering
+            const ProfilingScope scope("OpenGL render commands");  
 
-                indentedLabel("Mouse pos:");
-                ImGui::SameLine();
-                ImGui::Text("%.1f, %.1f", mousePos.x, mousePos.y);
-            }
+            glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+            // (づ｡◕‿‿◕｡)づ    Write OpenGL code here    ~(˘▾˘~)
         }
 
-        ImGui::End();
+        {
+            // Render ImGui items
+            const ProfilingScope scope("UI Rendering");  
 
-        // Render ImGui items
-        ImGui::Render();
-        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+            ImGui_ImplOpenGL3_NewFrame();
+            ImGui_ImplGlfw_NewFrame();
+            ImGui::NewFrame();
 
-        window.Update();
+            auto& io = ImGui::GetIO();
+            ImGui::Begin("Control panel", nullptr);
+            {
+                if (ImGui::CollapsingHeader("Stats", ImGuiTreeNodeFlags_DefaultOpen))
+                {
+                    indentedLabel("FPS:");
+                    ImGui::SameLine();
+                    ImGui::Text("%.1f (%.3fms)", io.Framerate, 1000.0f / io.Framerate);
+                
+                    ImGui::Text("Profiling:");
+                    for (const auto& scope : profilingScopes)
+                    {
+                        float duration = scope.duration * 1000.0;
+                        indentedLabel((scope.name + " :").c_str());
+                        ImGui::SameLine();
+                        ImGui::BeginDisabled();
+                        ImGui::PushItemWidth(100.0f);
+                        ImGui::DragFloat((std::string("##") + scope.name + "TimeDrag").c_str(), &duration, 1.0f, 0.0f, 0.0f, "%.3fms");
+                        ImGui::EndDisabled();
+                    }
+                }
+            }
+            ImGui::End();
+
+            ImGui::Render();
+            ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+        }
+
+        {
+            // It's the SwapBuffers that actually compute the rendering, not the calls to glXXX commands
+            const ProfilingScope scope("OpenGL Rendering");  
+            window.Update();
+        }
     }
 
     return 0;
