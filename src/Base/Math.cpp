@@ -116,7 +116,7 @@ glm::vec3 ClosestPointOnMesh(const glm::vec3& p,
                              float &distance)
 {
     int threadCount = omp_get_max_threads();
-    
+
     glm::vec3 closestPoints[threadCount];
     uint32_t closestIndices[threadCount];
     float closestDistances[threadCount];
@@ -146,7 +146,10 @@ glm::vec3 ClosestPointOnMesh(const glm::vec3& p,
     for (int i = 0 ; i < threadCount ; i++)
     {
         if (closestDistances[i] < closestDistance)
+        {
+            closestDistance = closestDistances[i];
             index = i;
+        }
 
     }
 
