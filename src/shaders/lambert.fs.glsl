@@ -84,7 +84,7 @@ void main()
     vec3 albedo = getAlbedo(inVertex.texCoord);
     float shadowMask = sampleShadows(uLightSpaceMatrix * inVertex.worldSpacePosition);
 
-    vec3 color = shadowMask * albedo * vec3(abs(dot(normal, camDirection)));
+    vec3 color = shadowMask * albedo * vec3(max(0.0, dot(normal, camDirection)));
     
     fColor = vec4(color, 1.0);
 }
