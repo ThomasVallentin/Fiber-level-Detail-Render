@@ -3,7 +3,8 @@
 #include "Base/Math.h"
 
 #include <glm/gtx/string_cast.hpp>
-#include <iostream>
+
+#include <omp.h>
 
 
 WrapDeformer::WrapDeformer()
@@ -52,6 +53,7 @@ void WrapDeformer::Deform(std::vector<glm::vec3>& points,
     if (m_bindings.empty())
         return;
 
+    #pragma omp parallel for num_threads(omp_get_max_threads())
     for (uint32_t i = 0 ; i < points.size() ; i++)
     {
         const uint32_t& triangleIndex = m_bindings[i];
