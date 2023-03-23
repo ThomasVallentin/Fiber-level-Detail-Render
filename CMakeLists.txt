@@ -9,12 +9,15 @@ project(FiberLevelDetailRender
 # General configuration
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin/)
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3") # define DEBUG macro for debug builds
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DDEBUG") # define DEBUG macro for debug builds
 
 # Third-party
 add_subdirectory(third-party)
 
 find_package(ImGui 1.89 REQUIRED)
+
+find_package(OpenMP REQUIRED)
 
 # Configure the executable
 file(GLOB_RECURSE SOURCES_FILES "${PROJECT_SOURCE_DIR}/src/**.cpp")
@@ -31,6 +34,7 @@ target_link_libraries(FiberLevelDetailRender
     glfw
     glm
     stb
-    glimac)
+    glimac
+    OpenMP::OpenMP_CXX)
 
 target_compile_features(FiberLevelDetailRender PRIVATE cxx_std_17)
