@@ -1,3 +1,4 @@
+#include "WrapDeformer.h"
 #include "SelfShadows.h"
 #include "ShadowMap.h"
 
@@ -9,6 +10,8 @@
 #include "Base/VertexArray.h"
 #include "Base/Camera.h"
 #include "Base/bccReader.h"
+#include "Base/Mesh.h"
+#include "Base/Math.h"
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -63,8 +66,9 @@ int main(int argc, char *argv[])
     readBCC(resolver.Resolve("resources/fiber.bcc"), closedFibersCP, openFibersCP);
 
     // Send the data to OpenGL
-    uint32_t fibersVertexCount = openFibersCP[0].size();
-    auto fibersVertexBuffer = VertexBuffer::Create(openFibersCP[0].data(), 
+    auto& fiberPoints = openFibersCP[0];
+    uint32_t fibersVertexCount = fiberPoints.size();
+    auto fibersVertexBuffer = VertexBuffer::Create(fiberPoints.data(), 
                                                    fibersVertexCount * sizeof(glm::vec3));
     fibersVertexBuffer->SetLayout({{"Position",  3, GL_FLOAT, false}});
     auto fibersVertexArray = VertexArray::Create();
@@ -80,9 +84,25 @@ int main(int argc, char *argv[])
                        nullptr, 
                        nullptr);
 
-    GLuint dummyVAO;
-    glGenVertexArrays(1, &dummyVAO);
-    glBindVertexArray(dummyVAO);
+    // Fabric mesh used to deform the fibers
+    std::vector<Vertex> clothVertices;
+    std::vector<uint32_t> clothIndices;
+    Mesh::BuildPlane(22.0f, 15.0f, 20, 20, clothVertices, clothIndices);
+
+    auto clothVertexBuffer = VertexBuffer::Create(clothVertices.data(), 
+                                                  clothVertices.size() * sizeof(Vertex));
+    clothVertexBuffer->SetLayout({{"Position",  3, GL_FLOAT, false},
+                                  {"Normal",    3, GL_FLOAT, false},
+                                  {"TexCoord",  2, GL_FLOAT, false}});
+    auto clothIndexBuffer = IndexBuffer::Create(clothIndices.data(), clothIndices.size()); 
+    auto clothVertexArray = VertexArray::Create();
+    clothVertexArray->Bind();
+    clothVertexArray->AddVertexBuffer(clothVertexBuffer);
+    clothVertexArray->SetIndexBuffer(clothIndexBuffer);
+    clothVertexArray->Unbind();
+
+    WrapDeformer wrap;
+    wrap.Initialize(fiberPoints, clothVertices, clothIndices);
 
     // Shadow mapping
     DirectionalLight directional(glm::normalize(glm::vec3(0.5f, -0.5f, -0.5f)), {0.8f, 0.8f, 0.8f});
@@ -91,25 +111,25 @@ int main(int argc, char *argv[])
     Shader blitChannelShader(resolver.Resolve("src/shaders/fullScreen.vs.glsl").c_str(), 
                              resolver.Resolve("src/shaders/blitTextureChannel.fs.glsl").c_str());
 
-    // Simple plane to visualize the casted shadows
-    std::vector<Vertex> planeVertices = {{{-10.0, 0.0, -10.0}, {0.0, 1.0, 0.0}, {0.0, 0.0}},
+    // Simple floor to visualize the casted shadows
+    std::vector<Vertex> floorVertices = {{{-10.0, 0.0, -10.0}, {0.0, 1.0, 0.0}, {0.0, 0.0}},
                                          {{-10.0, 0.0,  10.0}, {0.0, 1.0, 0.0}, {0.0, 1.0}},
                                          {{ 10.0, 0.0,  10.0}, {0.0, 1.0, 0.0}, {1.0, 1.0}},
                                          {{ 10.0, 0.0, -10.0}, {0.0, 1.0, 0.0}, {1.0, 0.0}}};
-    std::vector<uint32_t> planeIndices = {0, 1, 2, 2, 3, 0};
-    auto planeVertexBuffer = VertexBuffer::Create(planeVertices.data(), 
-                                                  planeVertices.size() * sizeof(Vertex));
-    planeVertexBuffer->SetLayout({{"Position",  3, GL_FLOAT, false},
+    std::vector<uint32_t> floorIndices = {0, 1, 2, 2, 3, 0};
+    auto floorVertexBuffer = VertexBuffer::Create(floorVertices.data(), 
+                                                  floorVertices.size() * sizeof(Vertex));
+    floorVertexBuffer->SetLayout({{"Position",  3, GL_FLOAT, false},
                                   {"Normal",    3, GL_FLOAT, false},
                                   {"TexCoord",  2, GL_FLOAT, false}});
-    auto planeIndexBuffer = IndexBuffer::Create(planeIndices.data(), planeIndices.size()); 
-    auto planeVertexArray = VertexArray::Create();
-    planeVertexArray->Bind();
-    planeVertexArray->AddVertexBuffer(planeVertexBuffer);
-    planeVertexArray->SetIndexBuffer(planeIndexBuffer);
-    planeVertexArray->Unbind();
+    auto floorIndexBuffer = IndexBuffer::Create(floorIndices.data(), floorIndices.size()); 
+    auto floorVertexArray = VertexArray::Create();
+    floorVertexArray->Bind();
+    floorVertexArray->AddVertexBuffer(floorVertexBuffer);
+    floorVertexArray->SetIndexBuffer(floorIndexBuffer);
+    floorVertexArray->Unbind();
 
-    Shader planeShader(resolver.Resolve("src/shaders/default3D.vs.glsl").c_str(), 
+    Shader floorShader(resolver.Resolve("src/shaders/default3D.vs.glsl").c_str(), 
                        resolver.Resolve("src/shaders/lambert.fs.glsl").c_str());
 
     // Self Shadows
@@ -126,6 +146,26 @@ int main(int argc, char *argv[])
         prevTime = currentTime;
         
         camera.Update();
+ 
+        for (auto& vertex : clothVertices)
+        {
+            float x = std::cos(currentTime) * (vertex.texCoord.x * 21.0f - 10.5f);
+            float z = std::abs(std::sin(currentTime)) * (vertex.texCoord.x * 21.0f - 10.5f);
+            vertex.position.x = x * vertex.texCoord.y + (1.0f - vertex.texCoord.y) * (vertex.texCoord.x * 21.0f - 10.5f);
+            vertex.position.z = z * vertex.texCoord.y;
+        }
+        Mesh::GenerateNormals(clothVertices, clothIndices);
+
+        wrap.Deform(fiberPoints, clothVertices, clothIndices);
+        fibersVertexBuffer->Bind();
+        fibersVertexBuffer->SetData(fiberPoints.data(), 
+                                    fibersVertexCount * sizeof(glm::vec3));
+        fibersVertexBuffer->Unbind();
+
+        clothVertexBuffer->Bind();
+        clothVertexBuffer->SetData(clothVertices.data(), 
+                                    clothVertices.size() * sizeof(Vertex));
+        clothVertexBuffer->Unbind();
 
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -160,18 +200,24 @@ int main(int argc, char *argv[])
         }
         shadowMap.End();
         
-        // Render plane
-        planeShader.use();
-        planeShader.setMat4("uModelMatrix", glm::mat4(1.0f));
-        planeShader.setMat4("uViewMatrix", camera.GetViewMatrix());
-        planeShader.setMat4("uProjMatrix", camera.GetProjectionMatrix());
-        planeShader.setMat4("uLightSpaceMatrix", directional.GetProjectionMatrix() * directional.GetViewMatrix());
+        // Render floor
+        floorShader.use();
+        floorShader.setMat4("uModelMatrix", glm::mat4(1.0f));
+        floorShader.setMat4("uViewMatrix", camera.GetViewMatrix());
+        floorShader.setMat4("uProjMatrix", camera.GetProjectionMatrix());
+        floorShader.setMat4("uLightSpaceMatrix", directional.GetProjectionMatrix() * directional.GetViewMatrix());
         shadowMap.GetTexture()->Attach(0);
-        planeShader.setInt("uShadowMap", 0);
+        floorShader.setInt("uShadowMap", 0);
 
-        planeVertexArray->Bind();
-        glDrawElements(GL_TRIANGLES, planeIndexBuffer->GetCount(), GL_UNSIGNED_INT, nullptr);
-        planeVertexArray->Unbind();
+        floorVertexArray->Bind();
+        glDrawElements(GL_TRIANGLES, floorIndexBuffer->GetCount(), GL_UNSIGNED_INT, nullptr);
+        floorVertexArray->Unbind();
+
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        clothVertexArray->Bind();
+        glDrawElements(GL_TRIANGLES, clothIndexBuffer->GetCount(), GL_UNSIGNED_INT, nullptr);
+        clothVertexArray->Unbind();
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
         // // Blit shadow map to the screen
         // blitChannelShader.use();
