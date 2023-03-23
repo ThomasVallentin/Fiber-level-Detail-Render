@@ -2,8 +2,6 @@
 #define MATH_H
 
 
-#include "VertexArray.h"
-
 #include <glm/glm.hpp>
 
 
@@ -20,10 +18,9 @@ glm::vec3 ClosestPointOnTriangle(const glm::vec3& p,
                                  const glm::vec3& t1, 
                                  const glm::vec3& t2, 
                                  const glm::vec3& t3);
-glm::vec3 ClosestPointOnMesh(const glm::vec3& p,
-                             const std::vector<Vertex>& vertices,
-                             const std::vector<uint32_t>& indices,
-                             uint32_t& triangleIndex,
-                             float &distance);
+
+
+// Projection
+glm::vec3 ProjectPointOnPlane(const glm::vec3& point, const glm::vec3& normal, const glm::vec3& planePoint);
 
 #endif // MATH_H
