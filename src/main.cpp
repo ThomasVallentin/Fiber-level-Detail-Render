@@ -1,3 +1,4 @@
+#include "Base/Camera.h"
 #include "Base/Window.h"
 #include "Base/Event.h"
 #include "Base/Resolver.h"
@@ -11,6 +12,14 @@
 #include <iostream>
 
 
+// Camera controls :
+// - Pan    : Alt + Middle click + Mouse move
+// - Rotate : Alt + Left click   + Mouse move
+// - Zoom   : Alt + Right click  + Mouse move (horizontal)
+Camera camera;
+glm::vec2 mousePos;
+
+
 int main(int argc, char *argv[])
 {
     auto& resolver = Resolver::Init(fs::weakly_canonical(argv[0])
@@ -18,10 +27,6 @@ int main(int argc, char *argv[])
                                     .parent_path());
 
     auto window = Window({1280, 720, "Fiber Level Detail Render"});
-
-    glm::vec2 mousePos;
-
-    // Define the event callback of the application
     auto eventCallback = [&](Event* event) {
         switch (event->GetType()) 
         {
@@ -39,8 +44,11 @@ int main(int argc, char *argv[])
                 break;
             }
         }
+
+        // 
+        camera.OnEvent(event);
     };
-    window.SetEventCallback(eventCallback);
+    window.SetEventCallback(eventCallback);  // Define the event callback of the application
 
     auto& profiler = Profiler::Init(window);
     std::vector<ProfilingScopeData> profilingScopes;
@@ -49,14 +57,20 @@ int main(int argc, char *argv[])
         profilingScopes = profiler.GetScopes();
         profiler.Clear();
 
+        camera.Update();
+
+        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         {
             // OpenGL Rendering
-            const ProfilingScope scope("OpenGL render commands");  
-
-            glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            const ProfilingScope scope("Render commands");  
 
             // (づ｡◕‿‿◕｡)づ    Write OpenGL code here    ~(˘▾˘~)
+            // shader.use();
+            // shader.setMat4("uModelMatrix", glm::mat4(1.0f));
+            // shader.setMat4("uViewMatrix",  camera.GetViewMatrix());
+            // shader.setMat4("uProjMatrix",  camera.GetProjectionMatrix());
+            // glDrawXXXX(...);
         }
 
         {
@@ -79,12 +93,12 @@ int main(int argc, char *argv[])
                     ImGui::Text("Profiling:");
                     for (const auto& scope : profilingScopes)
                     {
-                        float duration = scope.duration * 1000.0;
+                        float elapsedTime = scope.duration * 1000.0;
                         indentedLabel((scope.name + " :").c_str());
                         ImGui::SameLine();
                         ImGui::BeginDisabled();
                         ImGui::PushItemWidth(100.0f);
-                        ImGui::DragFloat((std::string("##") + scope.name + "TimeDrag").c_str(), &duration, 1.0f, 0.0f, 0.0f, "%.3fms");
+                        ImGui::DragFloat((std::string("##") + scope.name + "TimeDrag").c_str(), &elapsedTime, 1.0f, 0.0f, 0.0f, "%.3fms");
                         ImGui::EndDisabled();
                     }
                 }
