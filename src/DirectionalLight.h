@@ -10,6 +10,9 @@ class DirectionalLight
 public:
     DirectionalLight();
     DirectionalLight(const glm::vec3& color, const float& intensity=1.0f);
+    DirectionalLight(const glm::vec3& direction, 
+                     const glm::vec3& color, 
+                     const float& intensity=1.0f);
 
     void SetDirection(const glm::vec3& direction);
     void SetProjSize(const float& size);

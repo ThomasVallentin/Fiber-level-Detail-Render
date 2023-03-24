@@ -16,6 +16,17 @@ DirectionalLight::DirectionalLight(const glm::vec3& color, const float& intensit
     UpdateProjection();
 }
 
+DirectionalLight::DirectionalLight(const glm::vec3& direction, 
+                                   const glm::vec3& color, 
+                                   const float& intensity) :
+        m_direction(direction),
+        m_color(color),
+        m_intensity(intensity)
+{
+    UpdateView();
+    UpdateProjection();
+}
+
 void DirectionalLight::SetDirection(const glm::vec3& direction) 
 {
     m_direction = direction;

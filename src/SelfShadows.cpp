@@ -3,10 +3,10 @@
 #include "Base/Resolver.h"
 
 
-std::shared_ptr<Framebuffer> SelfShadows::s_densityFramebuffer;
-std::shared_ptr<Framebuffer> SelfShadows::s_absorptionFramebuffer;
-std::shared_ptr<Shader> SelfShadows::s_densityShader;
-std::shared_ptr<Shader> SelfShadows::s_absorptionShader;
+FramebufferPtr SelfShadows::s_densityFramebuffer;
+FramebufferPtr SelfShadows::s_absorptionFramebuffer;
+ShaderPtr SelfShadows::s_densityShader;
+ShaderPtr SelfShadows::s_absorptionShader;
 
 
 std::shared_ptr<Texture3D> SelfShadows::GenerateTexture(const SelfShadowsSettings& settings)

@@ -49,6 +49,10 @@ public:
     void GetData(const GLenum& pixelFormat, const GLenum& pixelType, const uint32_t& size, void* pixels) const;
     void GetData(const GLenum& pixelFormat, const GLenum& pixelType, void* pixels) const;
 
+    void SetIntParameter(const GLenum& param, const int& value) const;
+    void SetFloatParameter(const GLenum& param, const float& value) const;
+    void SetFloatParameter(const GLenum& param, const float* value) const;
+
     void SetFilteringFlags(const GLenum& minFilter, const GLenum& magFilter) const;
     void SetWrappingFlags(const GLenum& wrapS, 
                           const GLenum& wrapT) const;

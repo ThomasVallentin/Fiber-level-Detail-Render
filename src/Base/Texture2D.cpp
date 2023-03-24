@@ -123,6 +123,21 @@ void Texture2D::GetData(const GLenum& pixelFormat, const GLenum& pixelType, void
     glGetTexImage(GL_TEXTURE_2D, 0, pixelFormat, pixelType, pixels);
 }
 
+void Texture2D::SetIntParameter(const GLenum& param, const int& value) const
+{
+    glTexParameteri(GL_TEXTURE_2D, param, value);
+}
+
+void Texture2D::SetFloatParameter(const GLenum& param, const float& value) const
+{
+    glTexParameterf(GL_TEXTURE_2D, param, value);
+}
+
+void Texture2D::SetFloatParameter(const GLenum& param, const float* value) const
+{
+    glTexParameterfv(GL_TEXTURE_2D, param, value);
+}
+
 void Texture2D::SetFilteringFlags(const GLenum& minFilter, const GLenum& magFilter) const {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, minFilter);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, magFilter);

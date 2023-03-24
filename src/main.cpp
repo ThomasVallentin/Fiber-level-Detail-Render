@@ -1,10 +1,12 @@
 #include "SelfShadows.h"
+#include "ShadowMap.h"
 
 #include "Base/Window.h"
 #include "Base/Event.h"
 #include "Base/Resolver.h"
 #include "Base/Shader.h"
 #include "Base/Framebuffer.h"
+#include "Base/VertexArray.h"
 #include "Base/Camera.h"
 #include "Base/bccReader.h"
 
@@ -55,11 +57,22 @@ int main(int argc, char *argv[])
     };
     window.SetEventCallback(eventCallback);
 
-    /// OPENGL program start here 
-
+    // Read curves from the BCC file and send them to OpenGL
     std::vector<std::vector<glm::vec3>> closedFibersCP;
     std::vector<std::vector<glm::vec3>> openFibersCP;
     readBCC(resolver.Resolve("resources/fiber.bcc"), closedFibersCP, openFibersCP);
+
+    // Send the data to OpenGL
+    uint32_t fibersVertexCount = openFibersCP[0].size();
+    auto fibersVertexBuffer = VertexBuffer::Create(openFibersCP[0].data(), 
+                                                   fibersVertexCount * sizeof(glm::vec3));
+    fibersVertexBuffer->SetLayout({{"Position",  3, GL_FLOAT, false}});
+    auto fibersVertexArray = VertexArray::Create();
+    fibersVertexArray->Bind();
+    fibersVertexArray->AddVertexBuffer(fibersVertexBuffer);
+    fibersVertexArray->Unbind();
+    
+    glPatchParameteri(GL_PATCH_VERTICES, 4);
 
     Shader fiberShader(resolver.Resolve("src/shaders/shader.vs.glsl").c_str(), 
                        resolver.Resolve("src/shaders/shader.fs.glsl").c_str(),
@@ -67,46 +80,46 @@ int main(int argc, char *argv[])
                        resolver.Resolve("src/shaders/shader.tsc.glsl").c_str(),
                        resolver.Resolve("src/shaders/shader.tse.glsl").c_str());
 
-    int num_pc = openFibersCP[0].size();
-    // For test purpose
-    // num_pc = 1000;
-
-    float vertices[num_pc*3];
-
-    for (int i = 0; i < num_pc; i++) {
-        vertices[3*i] = openFibersCP[0][i][0];
-        vertices[3*i+1] = openFibersCP[0][i][1];
-        vertices[3*i+2] = openFibersCP[0][i][2];
-    }
-
-    // see bezier curve definition @ https://www.gatevidyalay.com/bezier-curve-in-computer-graphics-examples/
- 
-    unsigned int VBO, VAO;
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
-    glBindVertexArray(VAO);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, openFibersCP[0].size() * sizeof(glm::vec3), openFibersCP[0].data(), GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0); 
-
-    glBindVertexArray(0); 
-
-    glPatchParameteri(GL_PATCH_VERTICES, 4);
-
-    Shader slice3DShader(resolver.Resolve("src/shaders/fullScreen.vs.glsl").c_str(),
-                         resolver.Resolve("src/shaders/3DTextureSlice.fs.glsl").c_str());
-
-    // Self Shadows
-    SelfShadowsSettings selfShadowsSettings{512, 16};
-    std::shared_ptr<Texture3D> selfShadowsTexture = SelfShadows::GenerateTexture(selfShadowsSettings);    
-    
     GLuint dummyVAO;
     glGenVertexArrays(1, &dummyVAO);
     glBindVertexArray(dummyVAO);
 
-    glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
+    // Shadow mapping
+    DirectionalLight directional(glm::normalize(glm::vec3(0.5f, -0.5f, -0.5f)), {0.8f, 0.8f, 0.8f});
+    ShadowMap shadowMap(4096);
+
+    Shader blitChannelShader(resolver.Resolve("src/shaders/fullScreen.vs.glsl").c_str(), 
+                             resolver.Resolve("src/shaders/blitTextureChannel.fs.glsl").c_str());
+
+    // Simple plane to visualize the casted shadows
+    std::vector<Vertex> planeVertices = {{{-10.0, 0.0, -10.0}, {0.0, 1.0, 0.0}, {0.0, 0.0}},
+                                         {{-10.0, 0.0,  10.0}, {0.0, 1.0, 0.0}, {0.0, 1.0}},
+                                         {{ 10.0, 0.0,  10.0}, {0.0, 1.0, 0.0}, {1.0, 1.0}},
+                                         {{ 10.0, 0.0, -10.0}, {0.0, 1.0, 0.0}, {1.0, 0.0}}};
+    std::vector<uint32_t> planeIndices = {0, 1, 2, 2, 3, 0};
+    auto planeVertexBuffer = VertexBuffer::Create(planeVertices.data(), 
+                                                  planeVertices.size() * sizeof(Vertex));
+    planeVertexBuffer->SetLayout({{"Position",  3, GL_FLOAT, false},
+                                  {"Normal",    3, GL_FLOAT, false},
+                                  {"TexCoord",  2, GL_FLOAT, false}});
+    auto planeIndexBuffer = IndexBuffer::Create(planeIndices.data(), planeIndices.size()); 
+    auto planeVertexArray = VertexArray::Create();
+    planeVertexArray->Bind();
+    planeVertexArray->AddVertexBuffer(planeVertexBuffer);
+    planeVertexArray->SetIndexBuffer(planeIndexBuffer);
+    planeVertexArray->Unbind();
+
+    Shader planeShader(resolver.Resolve("src/shaders/default3D.vs.glsl").c_str(), 
+                       resolver.Resolve("src/shaders/lambert.fs.glsl").c_str());
+
+    // Self Shadows
+    // SelfShadowsSettings selfShadowsSettings{512, 16};
+    // std::shared_ptr<Texture3D> selfShadowsTexture = SelfShadows::GenerateTexture(selfShadowsSettings);    
+
+    // Shader slice3DShader(resolver.Resolve("src/shaders/fullScreen.vs.glsl").c_str(),
+    //                      resolver.Resolve("src/shaders/3DTextureSlice.fs.glsl").c_str());
+
+    glViewport(0, 0, window.GetWidth(), window.GetHeight());
     while (!window.ShouldClose()) {
         float currentTime = static_cast<float>(glfwGetTime());
         deltaTime = currentTime - prevTime;
@@ -126,7 +139,7 @@ int main(int argc, char *argv[])
         fiberShader.setMat4("view", view);
         fiberShader.setMat4("model", model);
     
-        glBindVertexArray(VAO);     
+        fibersVertexArray->Bind();
 
         fiberShader.setFloat("R_ply", 0.1f);
         fiberShader.setFloat("Rmin", 0.1f);
@@ -148,12 +161,44 @@ int main(int argc, char *argv[])
         // glDrawArrays(GL_PATCHES, 0, openFibersCP[0].size());
         // glDrawArrays(GL_PATCHES, 0, openFibersCP[0].size());
         
-        // // Render slices of selfShadow to screen
+        // Render slices of selfShadow to screen
         // slice3DShader.use();
         // selfShadowsTexture->Attach(0);
         // slice3DShader.setInt("uInputTexture", 0);
         // slice3DShader.setFloat("uDepth", std::sin(currentTime) * 0.5 + 0.5);
 
+        // glBindVertexArray(dummyVAO);
+        // glDrawArrays(GL_TRIANGLES, 0, 3);
+        // glBindVertexArray(0);
+
+        // directional.SetDirection(camera.GetForwardDirection());
+
+        shadowMap.Begin(directional.GetViewMatrix(), directional.GetProjectionMatrix());
+        {
+            // Render all the objects that cast shadows here
+            fibersVertexArray->Bind();
+            glDrawArrays(GL_LINE_STRIP, 0, fibersVertexCount);
+            fibersVertexArray->Unbind();
+        }
+        shadowMap.End();
+        
+        // Render plane
+        planeShader.use();
+        planeShader.setMat4("uModelMatrix", glm::mat4(1.0f));
+        planeShader.setMat4("uViewMatrix", camera.GetViewMatrix());
+        planeShader.setMat4("uProjMatrix", camera.GetProjectionMatrix());
+        planeShader.setMat4("uLightSpaceMatrix", directional.GetProjectionMatrix() * directional.GetViewMatrix());
+        shadowMap.GetTexture()->Attach(0);
+        planeShader.setInt("uShadowMap", 0);
+
+        planeVertexArray->Bind();
+        glDrawElements(GL_TRIANGLES, planeIndexBuffer->GetCount(), GL_UNSIGNED_INT, nullptr);
+        planeVertexArray->Unbind();
+
+        // // Blit shadow map to the screen
+        // blitChannelShader.use();
+        // shadowMap.GetTexture()->Attach(0);
+        // blitChannelShader.setInt("uInput", 0);
         // glBindVertexArray(dummyVAO);
         // glDrawArrays(GL_TRIANGLES, 0, 3);
         // glBindVertexArray(0);
