@@ -25,7 +25,7 @@ public:
 private:
     FramebufferPtr m_framebuffer;
     Shader m_shader;
-    GLint m_restoreViewport[4] = {0, 0, 1280, 720};
+    GLint m_restoreViewport[4] = {0, 0, 1600, 900};
 };
 
 

@@ -1,3 +1,4 @@
+#include "ParticleSystem.h"
 #include "WrapDeformer.h"
 #include "SelfShadows.h"
 #include "ShadowMap.h"
@@ -23,6 +24,10 @@
 #include <iostream>
 
 
+// Resolution
+uint32_t windowWidth = 1600;
+uint32_t windowHeight = 900;
+
 // Camera controls :
 // - Pan    : Alt + Middle click + Mouse move
 // - Rotate : Alt + Left click   + Mouse move
@@ -34,6 +39,17 @@ glm::vec2 mousePos;
 float deltaTime = 0.0f;
 float prevTime = 0.0f;
 
+// Simulation parameters
+float fe = 100.0;
+float h = 1.0 / fe;
+
+// Rendering parameters
+bool showFibers = true;
+bool showClothMesh = false;
+bool showFloor = false;
+
+
+
 
 int main(int argc, char *argv[])
 {
@@ -41,7 +57,7 @@ int main(int argc, char *argv[])
                                     .parent_path()
                                     .parent_path());
 
-    auto window = Window({1280, 720, "Fiber-Level Detail Render"});
+    auto window = Window({windowWidth, windowHeight, "Fiber-Level Detail Render"});
     auto eventCallback = [&](Event* event) {
         switch (event->GetType()) 
         {
@@ -83,8 +99,11 @@ int main(int argc, char *argv[])
 
     // Fabric mesh used to deform the fibers
     std::vector<Vertex> clothVertices;
+
     std::vector<uint32_t> clothIndices;
-    Mesh::BuildPlane(22.0f, 15.0f, 20, 20, clothVertices, clothIndices);
+    Mesh::BuildPlane(22.0f, 15.0f, 60, 40, clothVertices, clothIndices);    
+    ParticleSystem partSys;
+    InitClothFromMesh(partSys, clothVertices, 60, 40, fe);
 
     auto clothVertexBuffer = VertexBuffer::Create(clothVertices.data(), 
                                                   clothVertices.size() * sizeof(Vertex));
@@ -126,7 +145,7 @@ int main(int argc, char *argv[])
     floorVertexArray->SetIndexBuffer(floorIndexBuffer);
     floorVertexArray->Unbind();
 
-    Shader floorShader(resolver.Resolve("src/shaders/default3D.vs.glsl").c_str(), 
+    Shader lambertShader(resolver.Resolve("src/shaders/default3D.vs.glsl").c_str(), 
                        resolver.Resolve("src/shaders/lambert.fs.glsl").c_str());
 
     // Self Shadows
@@ -154,30 +173,34 @@ int main(int argc, char *argv[])
             // Mesh animation
             const ProfilingScope scope("Mesh animation");  
 
-            for (auto& vertex : clothVertices)
+            if (showFibers || showClothMesh)
             {
-                float x = std::cos(currentTime) * (vertex.texCoord.x * 21.0f - 10.5f);
-                float z = std::abs(std::sin(currentTime)) * (vertex.texCoord.x * 21.0f - 10.5f);
-                vertex.position.x = x * vertex.texCoord.y + (1.0f - vertex.texCoord.y) * (vertex.texCoord.x * 21.0f - 10.5f);
-                vertex.position.z = z * vertex.texCoord.y;
-            }
-            Mesh::GenerateNormals(clothVertices, clothIndices);
+                massSpringGravityWindSolver(partSys, h);
+                for (int i = 0 ; i < partSys.particles.size() ; ++i)
+                {
+                    clothVertices[i].position = partSys.particles[i].position;
+                }
+                Mesh::GenerateNormals(clothVertices, clothIndices);
 
-            clothVertexBuffer->Bind();
-            clothVertexBuffer->SetData(clothVertices.data(), 
-                                        clothVertices.size() * sizeof(Vertex));
-            clothVertexBuffer->Unbind();
+                clothVertexBuffer->Bind();
+                clothVertexBuffer->SetData(clothVertices.data(), 
+                                            clothVertices.size() * sizeof(Vertex));
+                clothVertexBuffer->Unbind();
+            }
         }
 
         {
             // Fibers deformation
             const ProfilingScope scope("Fibers deformation");  
-
-            wrap.Deform(fiberPoints, clothVertices, clothIndices);
-            fibersVertexBuffer->Bind();
-            fibersVertexBuffer->SetData(fiberPoints.data(), 
-                                        fibersVertexCount * sizeof(glm::vec3));
-            fibersVertexBuffer->Unbind();
+            
+            if (showFibers)
+            {
+                wrap.Deform(fiberPoints, clothVertices, clothIndices);
+                fibersVertexBuffer->Bind();
+                fibersVertexBuffer->SetData(fiberPoints.data(), 
+                                            fibersVertexCount * sizeof(glm::vec3));
+                fibersVertexBuffer->Unbind();
+            }
         }  
 
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
@@ -187,14 +210,17 @@ int main(int argc, char *argv[])
             // OpenGL Rendering
             const ProfilingScope scope("Render commands");  
 
-            fiberShader.use();
-            fiberShader.setMat4("uModelMatrix", glm::mat4(1.0f));
-            fiberShader.setMat4("uViewMatrix", camera.GetViewMatrix());
-            fiberShader.setMat4("uProjMatrix", camera.GetProjectionMatrix());
-        
-            fibersVertexArray->Bind();
-            glDrawArrays(GL_LINE_STRIP, 0, fibersVertexCount);
-            fibersVertexArray->Unbind();
+            if (showFibers)
+            {
+                fiberShader.use();
+                fiberShader.setMat4("uModelMatrix", glm::mat4(1.0f));
+                fiberShader.setMat4("uViewMatrix", camera.GetViewMatrix());
+                fiberShader.setMat4("uProjMatrix", camera.GetProjectionMatrix());
+            
+                fibersVertexArray->Bind();
+                glDrawArrays(GL_LINE_STRIP, 0, fibersVertexCount);
+                fibersVertexArray->Unbind();
+            }
             
             // Render slices of selfShadow to screen
             // slice3DShader.use();
@@ -208,33 +234,49 @@ int main(int argc, char *argv[])
 
             // directional.SetDirection(camera.GetForwardDirection());
 
-            shadowMap.Begin(directional.GetViewMatrix(), directional.GetProjectionMatrix());
+            if (showFloor)
             {
-                // Render all the objects that cast shadows here
-                fibersVertexArray->Bind();
-                glDrawArrays(GL_LINE_STRIP, 0, fibersVertexCount);
-                fibersVertexArray->Unbind();
+                shadowMap.Begin(directional.GetViewMatrix(), directional.GetProjectionMatrix());
+                {
+                    if (showFibers)
+                    {
+                        // Render all the objects that cast shadows here
+                        fibersVertexArray->Bind();
+                        glDrawArrays(GL_LINE_STRIP, 0, fibersVertexCount);
+                        fibersVertexArray->Unbind();
+                    }
+                }
+                shadowMap.End();
+                
+                // Render floor
+                lambertShader.use();
+                lambertShader.setMat4("uModelMatrix", glm::mat4(1.0f));
+                lambertShader.setMat4("uViewMatrix", camera.GetViewMatrix());
+                lambertShader.setMat4("uProjMatrix", camera.GetProjectionMatrix());
+                lambertShader.setMat4("uLightSpaceMatrix", directional.GetProjectionMatrix() * directional.GetViewMatrix());
+                lambertShader.setInt("uReceiveShadows", true);
+                shadowMap.GetTexture()->Attach(0);
+                lambertShader.setInt("uShadowMap", 0);
+
+                floorVertexArray->Bind();
+                glDrawElements(GL_TRIANGLES, floorIndexBuffer->GetCount(), GL_UNSIGNED_INT, nullptr);
+                floorVertexArray->Unbind();
             }
-            shadowMap.End();
-            
-            // Render floor
-            floorShader.use();
-            floorShader.setMat4("uModelMatrix", glm::mat4(1.0f));
-            floorShader.setMat4("uViewMatrix", camera.GetViewMatrix());
-            floorShader.setMat4("uProjMatrix", camera.GetProjectionMatrix());
-            floorShader.setMat4("uLightSpaceMatrix", directional.GetProjectionMatrix() * directional.GetViewMatrix());
-            shadowMap.GetTexture()->Attach(0);
-            floorShader.setInt("uShadowMap", 0);
 
-            floorVertexArray->Bind();
-            glDrawElements(GL_TRIANGLES, floorIndexBuffer->GetCount(), GL_UNSIGNED_INT, nullptr);
-            floorVertexArray->Unbind();
+            if (showClothMesh)
+            {
+                lambertShader.use();
+                lambertShader.setMat4("uModelMatrix", glm::mat4(1.0f));
+                lambertShader.setMat4("uViewMatrix", camera.GetViewMatrix());
+                lambertShader.setMat4("uProjMatrix", camera.GetProjectionMatrix());
+                lambertShader.setInt("uReceiveShadows", false);
 
-            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-            clothVertexArray->Bind();
-            glDrawElements(GL_TRIANGLES, clothIndexBuffer->GetCount(), GL_UNSIGNED_INT, nullptr);
-            clothVertexArray->Unbind();
-            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+                glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+                clothVertexArray->Bind();
+                glDrawElements(GL_TRIANGLES, clothIndexBuffer->GetCount(), GL_UNSIGNED_INT, nullptr);
+                clothVertexArray->Unbind();
+                glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+            }
 
             // // Blit shadow map to the screen
             // blitChannelShader.use();
@@ -273,6 +315,24 @@ int main(int argc, char *argv[])
                         ImGui::DragFloat((std::string("##") + scope.name + "TimeDrag").c_str(), &elapsedTime, 1.0f, 0.0f, 0.0f, "%.3fms");
                         ImGui::EndDisabled();
                     }
+                }
+
+                ImGui::Spacing();
+                
+                if (ImGui::CollapsingHeader("Rendering parameters", ImGuiTreeNodeFlags_DefaultOpen))
+                {
+                    indentedLabel("Show fibers :");
+                    ImGui::SameLine();
+                    ImGui::Checkbox("##ShowFibersCB", &showFibers);
+
+                    indentedLabel("Show cloth mesh :");
+                    ImGui::SameLine();
+                    ImGui::Checkbox("##ShowClothMeshCB", &showClothMesh);
+
+                    indentedLabel("Show floor :");
+                    ImGui::SameLine();
+                    ImGui::Checkbox("##ShowFloorCB", &showFloor);
+                
                 }
             }
             ImGui::End();
