@@ -67,9 +67,22 @@ int main(int argc, char *argv[])
     auto fibersVertexBuffer = VertexBuffer::Create(openFibersCP[0].data(), 
                                                    fibersVertexCount * sizeof(glm::vec3));
     fibersVertexBuffer->SetLayout({{"Position",  3, GL_FLOAT, false}});
+
+    std::vector<uint32_t> indices;
+    for (size_t i = 0 ; i < fibersVertexCount - 3 ; i++)
+    {
+        indices.push_back(i);
+        indices.push_back(i+1);
+        indices.push_back(i+2);
+        indices.push_back(i+3);
+    }
+    auto fibersIndexBuffer = IndexBuffer::Create(indices.data(), 
+                                                 indices.size());
+
     auto fibersVertexArray = VertexArray::Create();
     fibersVertexArray->Bind();
     fibersVertexArray->AddVertexBuffer(fibersVertexBuffer);
+    fibersVertexArray->SetIndexBuffer(fibersIndexBuffer);
     fibersVertexArray->Unbind();
     
     glPatchParameteri(GL_PATCH_VERTICES, 4);
@@ -154,12 +167,7 @@ int main(int argc, char *argv[])
         fiberShader.setFloat("R[2]", 0.05f); // distance from fiber i to ply center
         fiberShader.setFloat("R[3]", 0.2f); // distance from fiber i to ply center
 
-        for (int i = 0 ; i < (num_pc - 3) ; i++) {
-            glDrawArrays(GL_PATCHES, i, 4);
-        }
-
-        // glDrawArrays(GL_PATCHES, 0, openFibersCP[0].size());
-        // glDrawArrays(GL_PATCHES, 0, openFibersCP[0].size());
+        glDrawElements(GL_PATCHES, fibersIndexBuffer->GetCount(), GL_UNSIGNED_INT, nullptr);
         
         // Render slices of selfShadow to screen
         // slice3DShader.use();
@@ -173,27 +181,27 @@ int main(int argc, char *argv[])
 
         // directional.SetDirection(camera.GetForwardDirection());
 
-        shadowMap.Begin(directional.GetViewMatrix(), directional.GetProjectionMatrix());
-        {
-            // Render all the objects that cast shadows here
-            fibersVertexArray->Bind();
-            glDrawArrays(GL_LINE_STRIP, 0, fibersVertexCount);
-            fibersVertexArray->Unbind();
-        }
-        shadowMap.End();
+        // shadowMap.Begin(directional.GetViewMatrix(), directional.GetProjectionMatrix());
+        // {
+        //     // Render all the objects that cast shadows here
+        //     fibersVertexArray->Bind();
+        //     glDrawArrays(GL_LINE_STRIP, 0, fibersVertexCount);
+        //     fibersVertexArray->Unbind();
+        // }
+        // shadowMap.End();
         
         // Render plane
-        planeShader.use();
-        planeShader.setMat4("uModelMatrix", glm::mat4(1.0f));
-        planeShader.setMat4("uViewMatrix", camera.GetViewMatrix());
-        planeShader.setMat4("uProjMatrix", camera.GetProjectionMatrix());
-        planeShader.setMat4("uLightSpaceMatrix", directional.GetProjectionMatrix() * directional.GetViewMatrix());
-        shadowMap.GetTexture()->Attach(0);
-        planeShader.setInt("uShadowMap", 0);
+        // planeShader.use();
+        // planeShader.setMat4("uModelMatrix", glm::mat4(1.0f));
+        // planeShader.setMat4("uViewMatrix", camera.GetViewMatrix());
+        // planeShader.setMat4("uProjMatrix", camera.GetProjectionMatrix());
+        // planeShader.setMat4("uLightSpaceMatrix", directional.GetProjectionMatrix() * directional.GetViewMatrix());
+        // shadowMap.GetTexture()->Attach(0);
+        // planeShader.setInt("uShadowMap", 0);
 
-        planeVertexArray->Bind();
-        glDrawElements(GL_TRIANGLES, planeIndexBuffer->GetCount(), GL_UNSIGNED_INT, nullptr);
-        planeVertexArray->Unbind();
+        // planeVertexArray->Bind();
+        // glDrawElements(GL_TRIANGLES, planeIndexBuffer->GetCount(), GL_UNSIGNED_INT, nullptr);
+        // planeVertexArray->Unbind();
 
         // // Blit shadow map to the screen
         // blitChannelShader.use();
