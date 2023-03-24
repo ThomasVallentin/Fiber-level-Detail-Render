@@ -61,17 +61,23 @@ int main(int argc, char *argv[])
     std::vector<std::vector<glm::vec3>> openFibersCP;
     readBCC(resolver.Resolve("resources/fiber.bcc"), closedFibersCP, openFibersCP);
 
-    Shader shader(resolver.Resolve("src/shaders/shader.vs.glsl").c_str(), 
-                  resolver.Resolve("src/shaders/shader.fs.glsl").c_str(),nullptr,
-                  resolver.Resolve("src/shaders/shader.tsc.glsl").c_str(),
-                  resolver.Resolve("src/shaders/shader.tse.glsl").c_str());
+    Shader fiberShader(resolver.Resolve("src/shaders/shader.vs.glsl").c_str(), 
+                       resolver.Resolve("src/shaders/shader.fs.glsl").c_str(),
+                       nullptr,
+                       resolver.Resolve("src/shaders/shader.tsc.glsl").c_str(),
+                       resolver.Resolve("src/shaders/shader.tse.glsl").c_str());
 
-    float vertices[] = {
-        -0.75f, -0.0f, 0.0f, // left  
-         -0.25f, 0.25f, 0.0f, // top 
-         0.25f, -0.25f, 0.0f, // bottom 
-         0.75f, -0.0f, 0.0f, // right 
-    }; 
+    int num_pc = openFibersCP[0].size();
+    // For test purpose
+    // num_pc = 1000;
+
+    float vertices[num_pc*3];
+
+    for (int i = 0; i < num_pc; i++) {
+        vertices[3*i] = openFibersCP[0][i][0];
+        vertices[3*i+1] = openFibersCP[0][i][1];
+        vertices[3*i+2] = openFibersCP[0][i][2];
+    }
 
     // see bezier curve definition @ https://www.gatevidyalay.com/bezier-curve-in-computer-graphics-examples/
  
@@ -100,6 +106,7 @@ int main(int argc, char *argv[])
     glGenVertexArrays(1, &dummyVAO);
     glBindVertexArray(dummyVAO);
 
+    glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
     while (!window.ShouldClose()) {
         float currentTime = static_cast<float>(glfwGetTime());
         deltaTime = currentTime - prevTime;
@@ -110,42 +117,46 @@ int main(int argc, char *argv[])
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        // shader.use();
+        fiberShader.use();
         
-        // glm::mat4 projection = camera.GetProjectionMatrix();
-        // glm::mat4 view = camera.GetViewMatrix();
-        // glm::mat4 model = glm::mat4(1.0f);
-        // shader.setMat4("projection", projection);
-        // shader.setMat4("view", view);
-        // shader.setMat4("model", model);
+        glm::mat4 projection = camera.GetProjectionMatrix();
+        glm::mat4 view = camera.GetViewMatrix();
+        glm::mat4 model = glm::mat4(1.0f);
+        fiberShader.setMat4("projection", projection);
+        fiberShader.setMat4("view", view);
+        fiberShader.setMat4("model", model);
     
-        // glBindVertexArray(VAO);     
+        glBindVertexArray(VAO);     
 
-        // shader.setFloat("R_ply", 0.1f);
-        // shader.setFloat("Rmin", 0.1f);
-        // shader.setFloat("Rmax", 0.2f);
-        // shader.setFloat("theta", 1.0f);
-        // shader.setFloat("s", 2.0f);  // length of rotation
-        // shader.setFloat("eN", 1.0f); // ellipse scaling factor along Normal
-        // shader.setFloat("eB", 1.0f); // ellipse scaling factor along Bitangent
+        fiberShader.setFloat("R_ply", 0.1f);
+        fiberShader.setFloat("Rmin", 0.1f);
+        fiberShader.setFloat("Rmax", 0.2f);
+        fiberShader.setFloat("theta", 1.0f);
+        fiberShader.setFloat("s", 2.0f);  // length of rotation
+        fiberShader.setFloat("eN", 1.0f); // ellipse scaling factor along Normal
+        fiberShader.setFloat("eB", 1.0f); // ellipse scaling factor along Bitangent
 
-        // shader.setFloat("R[0]", 0.1f); // distance from fiber i to ply center
-        // shader.setFloat("R[1]", 0.15f); // distance from fiber i to ply center
-        // shader.setFloat("R[2]", 0.05f); // distance from fiber i to ply center
-        // shader.setFloat("R[3]", 0.2f); // distance from fiber i to ply center
+        fiberShader.setFloat("R[0]", 0.1f); // distance from fiber i to ply center
+        fiberShader.setFloat("R[1]", 0.15f); // distance from fiber i to ply center
+        fiberShader.setFloat("R[2]", 0.05f); // distance from fiber i to ply center
+        fiberShader.setFloat("R[3]", 0.2f); // distance from fiber i to ply center
+
+        for (int i = 0 ; i < (num_pc - 3) ; i++) {
+            glDrawArrays(GL_PATCHES, i, 4);
+        }
 
         // glDrawArrays(GL_PATCHES, 0, openFibersCP[0].size());
         // glDrawArrays(GL_PATCHES, 0, openFibersCP[0].size());
         
-        // Render slices of selfShadow to screen
-        slice3DShader.use();
-        selfShadowsTexture->Attach(0);
-        slice3DShader.setInt("uInputTexture", 0);
-        slice3DShader.setFloat("uDepth", std::sin(currentTime) * 0.5 + 0.5);
+        // // Render slices of selfShadow to screen
+        // slice3DShader.use();
+        // selfShadowsTexture->Attach(0);
+        // slice3DShader.setInt("uInputTexture", 0);
+        // slice3DShader.setFloat("uDepth", std::sin(currentTime) * 0.5 + 0.5);
 
-        glBindVertexArray(dummyVAO);
-        glDrawArrays(GL_TRIANGLES, 0, 3);
-        glBindVertexArray(0);
+        // glBindVertexArray(dummyVAO);
+        // glDrawArrays(GL_TRIANGLES, 0, 3);
+        // glBindVertexArray(0);
 
         // Start the Dear ImGui frame
         ImGui_ImplOpenGL3_NewFrame();
