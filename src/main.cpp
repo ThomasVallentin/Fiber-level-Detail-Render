@@ -89,7 +89,7 @@ int main(int argc, char *argv[])
 
     Shader fiberShader(resolver.Resolve("src/shaders/shader.vs.glsl").c_str(), 
                        resolver.Resolve("src/shaders/shader.fs.glsl").c_str(),
-                       nullptr,
+                       resolver.Resolve("src/shaders/shader.gs.glsl").c_str(),
                        resolver.Resolve("src/shaders/shader.tsc.glsl").c_str(),
                        resolver.Resolve("src/shaders/shader.tse.glsl").c_str());
 

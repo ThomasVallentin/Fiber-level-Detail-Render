@@ -7,7 +7,6 @@ float PI = 3.14159;
 
 uniform mat4 model;           // the model matrix
 uniform mat4 view;            // the view matrix
-uniform mat4 projection;      // the projection matrix
 
 uniform float R_ply; // R_ply
 uniform float Rmin; 
@@ -23,9 +22,14 @@ uniform float R[4];
 patch in vec4 p_1;
 patch in vec4 p2;
 
+
 out TS_OUT {
     int globalFiberIndex;
+    vec3 yarnNormal;
+    vec3 yarnTangent;
+    vec3 yarnBitangent;
 } ts_out; 
+
 
 vec3 bezierCurve(vec3 pos1, vec3 pos2,vec3 pos3, vec3 pos4,float u){
     float b0 = (1.-u) * (1.-u) * (1.-u);
@@ -81,7 +85,7 @@ void main() {
     vec3 N_yarn = vec3(0.0, 1.0, 0.0);
     //vec3 T_yarn = normalize(bezierDerivative(pc1,pc2,pc3,pc4,u));
     vec3 T_yarn = normalize(catmullDerivative(pc1,pc2,pc3,pc4,u));
-    vec3 B_yarn = cross(T_yarn,N_yarn); 
+    vec3 B_yarn = cross(T_yarn, N_yarn); 
    
     float thetaPly = 2 * PI * plyIndex / n_ply;
     vec3 displacement_ply = 0.5 * R_ply * (cos(thetaPly + u * theta) * N_yarn + (sin(thetaPly + u * theta) * B_yarn));
@@ -92,9 +96,12 @@ void main() {
     float R_fiber = 0.5f * Ri * (Rmax + Rmin + (Rmax - Rmin)*cos(thetaI + s * u * theta));
 
     vec3 N_ply = (1. / length(displacement_ply) ) * displacement_ply;
-    vec3 B_ply = cross(T_yarn,N_ply);
+    vec3 B_ply = cross(T_yarn, N_ply);
     vec3 displacement_fiber = R_fiber * (cos(thetaI + u * 2.0f * theta) * N_ply * eN + sin(thetaI +  u * 2.0f* theta) * B_ply * eB);
 
-    gl_Position = projection * view * model * vec4(yarnCenter + displacement_ply + displacement_fiber , 1.0);
+    gl_Position = view * model * vec4(yarnCenter + displacement_ply + displacement_fiber , 1.0);
     ts_out.globalFiberIndex = int(v * n_fiber);
+    ts_out.yarnNormal = cross(T_yarn, B_yarn);
+    ts_out.yarnTangent = T_yarn;
+    ts_out.yarnBitangent = B_yarn;
 }

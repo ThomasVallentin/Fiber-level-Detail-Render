@@ -1,39 +1,72 @@
 #version 410 core
 layout (lines) in;
-layout (triangle_strip, max_vertices = 4) out;
+layout (triangle_strip, max_vertices = 6) out;
 
 
-in TS_OUT {
+in TS_OUT 
+{
     int globalFiberIndex;
+    vec3 yarnNormal;
+    vec3 yarnTangent;
+    vec3 yarnBitangent;
 } gs_in[]; 
 
+
+uniform mat4 view; 
+uniform mat4 projection;
+
+
+out GS_OUT 
+{
+    vec3 normal;
+} gs_out;
+
+
 void main() {    
-    float thickness = 1.5f;
+    float thickness = 0.0075;
 
-    if (gs_in[0].globalFiberIndex % 22 == 0) 
-        thickness = 10.f;
+    // if (gs_in[0].globalFiberIndex % 22 == 0) 
+    //     thickness = 10.0;
 
-    vec2 u_viewportInvSize = vec2(0.0006f,0.0008f);
+    vec3 pntA = gl_in[0].gl_Position.xyz;
+    vec3 pntB = gl_in[1].gl_Position.xyz;
+    vec3 tangentA = normalize(vec3(view * vec4(gs_in[0].yarnTangent, 0.0)));
+    vec3 tangentB = normalize(vec3(view * vec4(gs_in[1].yarnTangent, 0.0)));
 
-    vec4 p1 = gl_in[0].gl_Position;
-    vec4 p2 = gl_in[1].gl_Position;
+    vec3 toCamera = normalize(-pntA);
+    vec3 frontFacingBitangentA = cross(toCamera, tangentA);
+    vec3 viewSpaceNormalA = cross(tangentA, frontFacingBitangentA);
 
-    vec2 dir = normalize(p2.xy - p1.xy);
-    vec2 normal = vec2(dir.y, -dir.x);
+    vec3 frontFacingBitangentB = cross(toCamera, tangentB);
+    vec3 viewSpaceNormalB = cross(tangentB, frontFacingBitangentB);
 
-    vec4 offset1, offset2;
-    offset1 = vec4(normal * u_viewportInvSize * (thickness * p1.w), 0, 0);
-    offset2 = vec4(normal * u_viewportInvSize * (thickness * p2.w), 0, 0); // changing this to p2 fixes some of the issues
+    // Top left
+    gs_out.normal = -frontFacingBitangentB;
+    gl_Position = projection * vec4(pntB - frontFacingBitangentB * thickness, 1.0);
+    EmitVertex();
 
-    vec4 coords[4];
-    coords[0] = p1 + offset1;
-    coords[1] = p1 - offset1;
-    coords[2] = p2 + offset2;
-    coords[3] = p2 - offset2;
+    // Bottom left
+    gs_out.normal = -frontFacingBitangentA;
+    gl_Position = projection * vec4(pntA - frontFacingBitangentA * thickness, 1.0);
+    EmitVertex();
 
-    for (int i = 0; i < 4; ++i) {
-        gl_Position = coords[i];
-        EmitVertex();
-    }
-    EndPrimitive();
+    // Top middle
+    gs_out.normal = viewSpaceNormalB;
+    gl_Position = projection * vec4(pntB, 1.0);
+    EmitVertex();
+
+    // Bottom middle
+    gs_out.normal = viewSpaceNormalA;
+    gl_Position = projection * vec4(pntA, 1.0);
+    EmitVertex();
+
+    // Top right
+    gs_out.normal = frontFacingBitangentB;
+    gl_Position = projection * vec4(pntB + frontFacingBitangentB * thickness, 1.0);
+    EmitVertex();
+
+    // Bottom right
+    gs_out.normal = frontFacingBitangentA;
+    gl_Position = projection * vec4(pntA + frontFacingBitangentA * thickness, 1.0);
+    EmitVertex();
 }  
