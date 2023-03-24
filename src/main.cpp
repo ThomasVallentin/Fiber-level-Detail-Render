@@ -66,17 +66,21 @@ int main(int argc, char *argv[])
     std::vector<std::vector<glm::vec3>> closedFibersCP;
     std::vector<std::vector<glm::vec3>> openFibersCP;
 
-    Shader shader("../src/shaders/shader.vs.glsl", "../src/shaders/shader.fs.glsl",nullptr,"../src/shaders/shader.tsc.glsl","../src/shaders/shader.tse.glsl");
+    Shader shader("../src/shaders/shader.vs.glsl", "../src/shaders/shader.fs.glsl","../src/shaders/shader.gs.glsl","../src/shaders/shader.tsc.glsl","../src/shaders/shader.tse.glsl");
 
     readBCC("../resources/fiber.bcc",closedFibersCP,openFibersCP);
 
-    float vertices[] = {
-        -0.75f, -0.0f, 0.0f, // pos1
-         -0.25f, 0.25f, 0.0f, // pos2 
-         0.25f, -0.25f, 0.0f, // pos3 
-         0.75f, -0.0f, 0.0f, // pos4
-         1.0f, 0.2f, 0.0f // pos5
-    }; 
+    int num_pc = openFibersCP[0].size();
+    // For test purpose
+    num_pc = 1000;
+
+    float vertices[num_pc*3];
+
+    for (int i = 0; i < num_pc; i++) {
+        vertices[3*i] = openFibersCP[0][i][0];
+        vertices[3*i+1] = openFibersCP[0][i][1];
+        vertices[3*i+2] = openFibersCP[0][i][2];
+    }
 
     // see bezier curve definition @ https://www.gatevidyalay.com/bezier-curve-in-computer-graphics-examples/
  
@@ -108,13 +112,13 @@ int main(int argc, char *argv[])
         shader.setMat4("projection", projection);
         shader.setMat4("view", view);
         glm::mat4 model = glm::mat4(1.0f);
-        //model = glm::scale(model,glm::vec3(4.0f));
+        model = glm::scale(model,glm::vec3(0.8f));
         shader.setMat4("model", model);
     
         shader.use();
         glBindVertexArray(VAO);     
 
-        shader.setFloat("R_ply", 0.1f);
+        shader.setFloat("R_ply", 0.3f);
         shader.setFloat("Rmin", 0.1f);
         shader.setFloat("Rmax", 0.2f);
         shader.setFloat("theta", 1.0f);
@@ -128,8 +132,10 @@ int main(int argc, char *argv[])
         shader.setFloat("R[3]", 0.2f); // distance from fiber i to ply center
 
 
-        glDrawArrays(GL_PATCHES,0,4);
-        glDrawArrays(GL_PATCHES,1,4);
+
+        for (int i = 0; i < (num_pc - 3); i++) {
+            glDrawArrays(GL_PATCHES,i,4);
+        }
 
         // // Start the Dear ImGui frame
         // ImGui_ImplOpenGL3_NewFrame();

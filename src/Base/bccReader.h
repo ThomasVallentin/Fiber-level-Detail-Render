@@ -46,7 +46,7 @@ void readBCC(const std::string& filename,std::vector<std::vector<glm::vec3>>& cl
                 glm::vec3 point;
                 fread(&point,sizeof(float),3,pFile);
                 //std::cout<<point.x<<" "<<point.y<<" "<<point.z<<std::endl;
-                curveData[id]=point;
+                curveData[cpid]=point;
             }
             closedFibersCP.emplace_back(curveData);
             std::cout << "Curve nb "<<id<<" should have "<<nbCP<<" control points and has "<<curveData.size()<<" control points."<<std::endl;
@@ -56,7 +56,7 @@ void readBCC(const std::string& filename,std::vector<std::vector<glm::vec3>>& cl
                 glm::vec3 point;
                 fread(&point,sizeof(float),3,pFile);
                 //std::cout<<point.x<<" "<<point.y<<" "<<point.z<<std::endl;
-                curveData[id]=point;
+                curveData[cpid]=point;
             }
             openFibersCP.emplace_back(curveData);
             std::cout << "Curve nb "<<id<<" should have "<<nbCP<<" control points and has "<<curveData.size()<<" control points."<<std::endl;
