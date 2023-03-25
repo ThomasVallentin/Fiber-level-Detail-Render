@@ -33,6 +33,10 @@ bool firstMouse = true;
 float deltaTime = 0.0f;
 float prevTime = 0.0f;
 
+// Rendering parameters
+bool useAmbientOcclusion = true;
+
+
 int main(int argc, char *argv[])
 {
     auto& resolver = Resolver::Init(fs::weakly_canonical(argv[0])
@@ -63,6 +67,9 @@ int main(int argc, char *argv[])
     readBCC(resolver.Resolve("resources/fiber.bcc"), closedFibersCP, openFibersCP);
 
     // Send the data to OpenGL
+    // openFibersCP[0] = {{0, 0, 0}, {0.5, 0.5, 0.25}, {1, 0, 0.5}, {1.5, 0.5, 0.25}, 
+    //                     {2, 0, 0}, {2.5, 0.5, 0.25}, {3, 0, 0.5}, {3.5, 0.5, 0.25}};
+
     uint32_t fibersVertexCount = openFibersCP[0].size();
     auto fibersVertexBuffer = VertexBuffer::Create(openFibersCP[0].data(), 
                                                    fibersVertexCount * sizeof(glm::vec3));
@@ -163,11 +170,17 @@ int main(int argc, char *argv[])
         fiberShader.setFloat("eB", 1.0f); // ellipse scaling factor along Bitangent
 
         fiberShader.setFloat("R[0]", 0.1f); // distance from fiber i to ply center
-        fiberShader.setFloat("R[1]", 0.15f); // distance from fiber i to ply center
-        fiberShader.setFloat("R[2]", 0.05f); // distance from fiber i to ply center
-        fiberShader.setFloat("R[3]", 0.2f); // distance from fiber i to ply center
+        fiberShader.setFloat("R[1]", 0.2f); // distance from fiber i to ply center
+        fiberShader.setFloat("R[2]", 0.3f); // distance from fiber i to ply center
+        fiberShader.setFloat("R[3]", 0.4f); // distance from fiber i to ply center
+
+        fiberShader.setBool("uUseAmbientOcclusion", useAmbientOcclusion); // distance from fiber i to ply center
 
         glDrawElements(GL_PATCHES, fibersIndexBuffer->GetCount(), GL_UNSIGNED_INT, nullptr);
+
+        // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        // glDrawElements(GL_PATCHES, fibersIndexBuffer->GetCount(), GL_UNSIGNED_INT, nullptr);
+        // glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         
         // Render slices of selfShadow to screen
         // slice3DShader.use();
@@ -224,6 +237,12 @@ int main(int argc, char *argv[])
                 indentedLabel("FPS:");
                 ImGui::SameLine();
                 ImGui::Text("%.1f (%.3fms)", io.Framerate, 1000.0f / io.Framerate);
+            }
+            if (ImGui::CollapsingHeader("Controls", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                indentedLabel("Ambient occlusion:");
+                ImGui::SameLine();
+                ImGui::Checkbox("##UseAmbientOcclusion", &useAmbientOcclusion);
             }
         }
 
