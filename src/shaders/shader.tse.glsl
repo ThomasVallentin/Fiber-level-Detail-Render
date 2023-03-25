@@ -26,9 +26,8 @@ patch in vec4 p2;
 out TS_OUT {
     int globalFiberIndex;
     vec3 yarnCenter;
-    vec3 yarnNormal;
+    vec3 fiberNormal;
     vec3 yarnTangent;
-    vec3 yarnBitangent;
 } ts_out; 
 
 
@@ -125,7 +124,6 @@ void main() {
     gl_Position = view * model * vec4(yarnCenter + displacement_ply + displacement_fiber, 1.0);
     ts_out.globalFiberIndex = int(v * fiberCount);
     ts_out.yarnCenter = vec3(view * model * vec4(yarnCenter, 1.0));
-    ts_out.yarnNormal = vec3(view * model * vec4(N_fiber, 0.0));
+    ts_out.fiberNormal = vec3(view * model * vec4(N_fiber, 0.0));
     ts_out.yarnTangent = vec3(view * model * vec4(T_fiber, 0.0));
-    ts_out.yarnBitangent = vec3(view * model * vec4(B_fiber, 0.0));
 }

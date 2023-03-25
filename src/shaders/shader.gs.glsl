@@ -7,9 +7,8 @@ in TS_OUT
 {
     int globalFiberIndex;
     vec3 yarnCenter;
-    vec3 yarnNormal;
+    vec3 fiberNormal;
     vec3 yarnTangent;
-    vec3 yarnBitangent;
 } gs_in[]; 
 
 
@@ -39,11 +38,11 @@ void main() {
 
     vec3 toCameraA = normalize(-pntA);
     vec3 frontFacingBitangentA = normalize(cross(toCameraA, tangentA));
-    vec3 normalA = gs_in[0].yarnNormal;
+    vec3 normalA = gs_in[0].fiberNormal;
 
     vec3 toCameraB = normalize(-pntB);
     vec3 frontFacingBitangentB = normalize(cross(toCameraB, tangentB));
-    vec3 normalB = gs_in[1].yarnNormal;
+    vec3 normalB = gs_in[1].fiberNormal;
 
     // Top left
     vec3 vertex = pntB - frontFacingBitangentA * thickness;
