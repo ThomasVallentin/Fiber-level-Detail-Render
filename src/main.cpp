@@ -72,7 +72,6 @@ int main(int argc, char *argv[])
 
     int num_pc = openFibersCP[0].size();
     // For test purpose
-    num_pc = 1000;
 
     float vertices[num_pc*3];
 

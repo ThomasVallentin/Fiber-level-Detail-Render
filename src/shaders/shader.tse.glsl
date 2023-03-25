@@ -71,8 +71,8 @@ void main() {
     int plyIndex = int(v * n_fiber) % n_ply;
 
     vec3 pc1 = p_1.xyz;
-    vec3 pc2 = gl_in[1].gl_Position.xyz;
-    vec3 pc3 = gl_in[2].gl_Position.xyz;
+    vec3 pc2 = gl_in[0].gl_Position.xyz;
+    vec3 pc3 = gl_in[1].gl_Position.xyz;
     vec3 pc4 = p2.xyz;
 
     //vec3 yarnCenter = bezierCurve(pc1,pc2,pc3,pc4,u); 
