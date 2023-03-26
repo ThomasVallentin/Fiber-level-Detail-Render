@@ -96,11 +96,11 @@ int main(int argc, char *argv[])
     
     glPatchParameteri(GL_PATCH_VERTICES, 4);
 
-    Shader fiberShader(resolver.Resolve("src/shaders/shader.vs.glsl").c_str(), 
-                       resolver.Resolve("src/shaders/shader.fs.glsl").c_str(),
-                       resolver.Resolve("src/shaders/shader.gs.glsl").c_str(),
-                       resolver.Resolve("src/shaders/shader.tsc.glsl").c_str(),
-                       resolver.Resolve("src/shaders/shader.tse.glsl").c_str());
+    Shader fiberShader(resolver.Resolve("src/shaders/fibers.vs.glsl").c_str(), 
+                       resolver.Resolve("src/shaders/fibers.fs.glsl").c_str(),
+                       resolver.Resolve("src/shaders/fibers.gs.glsl").c_str(),
+                       resolver.Resolve("src/shaders/fibers.tsc.glsl").c_str(),
+                       resolver.Resolve("src/shaders/fibers.tse.glsl").c_str());
 
     GLuint dummyVAO;
     glGenVertexArrays(1, &dummyVAO);
