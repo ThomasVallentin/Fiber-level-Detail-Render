@@ -48,8 +48,10 @@ bool showFibers = true;
 bool showClothMesh = false;
 bool showFloor = false;
 
+bool useAmbientOcclusion = true;
 
-
+bool useShadowMapping = true;
+float shadowMapThickness = 0.15f;
 
 int main(int argc, char *argv[])
 {
@@ -84,18 +86,31 @@ int main(int argc, char *argv[])
     auto fibersVertexBuffer = VertexBuffer::Create(fiberPoints.data(), 
                                                    fibersVertexCount * sizeof(glm::vec3));
     fibersVertexBuffer->SetLayout({{"Position",  3, GL_FLOAT, false}});
+
+    std::vector<uint32_t> indices;
+    for (size_t i = 0 ; i < fibersVertexCount - 3 ; i++)
+    {
+        indices.push_back(i);
+        indices.push_back(i+1);
+        indices.push_back(i+2);
+        indices.push_back(i+3);
+    }
+    auto fibersIndexBuffer = IndexBuffer::Create(indices.data(), 
+                                                 indices.size());
+
     auto fibersVertexArray = VertexArray::Create();
     fibersVertexArray->Bind();
     fibersVertexArray->AddVertexBuffer(fibersVertexBuffer);
+    fibersVertexArray->SetIndexBuffer(fibersIndexBuffer);
     fibersVertexArray->Unbind();
     
     glPatchParameteri(GL_PATCH_VERTICES, 4);
 
-    Shader fiberShader(resolver.Resolve("src/shaders/noProjection3D.vs.glsl").c_str(), 
-                       resolver.Resolve("src/shaders/solidColor.fs.glsl").c_str(),
-                       resolver.Resolve("src/shaders/triangulateLine.gs.glsl").c_str(),
-                       nullptr, 
-                       nullptr);
+    Shader fiberShader(resolver.Resolve("src/shaders/fibers.vs.glsl").c_str(), 
+                       resolver.Resolve("src/shaders/fibers.fs.glsl").c_str(),
+                       resolver.Resolve("src/shaders/fibers.gs.glsl").c_str(),
+                       resolver.Resolve("src/shaders/fibers.tsc.glsl").c_str(),
+                       resolver.Resolve("src/shaders/fibers.tse.glsl").c_str());
 
     // Fabric mesh used to deform the fibers
     std::vector<Vertex> clothVertices;
@@ -123,9 +138,9 @@ int main(int argc, char *argv[])
     // Shadow mapping
     DirectionalLight directional(glm::normalize(glm::vec3(0.5f, -0.5f, -0.5f)), {0.8f, 0.8f, 0.8f});
     ShadowMap shadowMap(4096);
-
-    Shader blitChannelShader(resolver.Resolve("src/shaders/fullScreen.vs.glsl").c_str(), 
-                             resolver.Resolve("src/shaders/blitTextureChannel.fs.glsl").c_str());
+    
+    Shader blitChannelShader(resolver.Resolve("src/shaders/utility/fullScreen.vs.glsl").c_str(), 
+                             resolver.Resolve("src/shaders/utility/blitTextureChannel.fs.glsl").c_str());
 
     // Simple floor to visualize the casted shadows
     std::vector<Vertex> floorVertices = {{{-10.0, 0.0, -10.0}, {0.0, 1.0, 0.0}, {0.0, 0.0}},
@@ -152,8 +167,8 @@ int main(int argc, char *argv[])
     // SelfShadowsSettings selfShadowsSettings{512, 16};
     // std::shared_ptr<Texture3D> selfShadowsTexture = SelfShadows::GenerateTexture(selfShadowsSettings);    
 
-    // Shader slice3DShader(resolver.Resolve("src/shaders/fullScreen.vs.glsl").c_str(),
-    //                      resolver.Resolve("src/shaders/3DTextureSlice.fs.glsl").c_str());
+    // Shader slice3DShader(resolver.Resolve("src/shaders/utility/fullScreen.vs.glsl").c_str(),
+    //                      resolver.Resolve("src/shaders/utility/3DTextureSlice.fs.glsl").c_str());
 
     glViewport(0, 0, window.GetWidth(), window.GetHeight());
     auto& profiler = Profiler::Init(window);
@@ -210,17 +225,74 @@ int main(int argc, char *argv[])
             // OpenGL Rendering
             const ProfilingScope scope("Render commands");  
 
+            glm::mat4 projMatrix = camera.GetProjectionMatrix();
+            glm::mat4 viewMatrix = camera.GetViewMatrix();
+            glm::mat4 viewInverseMatrix = glm::inverse(camera.GetViewMatrix());
+            glm::mat4 modelMatrix = glm::mat4(1.0f);
+
+            if (showFloor || showFibers)
+            {
+                // Render the shadow map
+                // directional.SetDirection(camera.GetForwardDirection());
+                if (useShadowMapping)
+                {    
+                    shadowMap.Begin(directional.GetViewMatrix(), directional.GetProjectionMatrix(), shadowMapThickness);
+                    {
+                        // Render all the objects that cast shadows here
+                        fibersVertexArray->Bind();
+                        glEnable(GL_CULL_FACE);
+                        glCullFace(GL_BACK);
+                        glDrawElements(GL_PATCHES, fibersIndexBuffer->GetCount(), GL_UNSIGNED_INT, nullptr);
+                        glDisable(GL_CULL_FACE);
+                        fibersVertexArray->Unbind();
+                    }    
+                    shadowMap.End();
+                }
+                else
+                {
+                    shadowMap.Clear();
+                }
+            }
+
             if (showFibers)
             {
                 fiberShader.use();
-                fiberShader.setMat4("uModelMatrix", glm::mat4(1.0f));
-                fiberShader.setMat4("uViewMatrix", camera.GetViewMatrix());
-                fiberShader.setMat4("uProjMatrix", camera.GetProjectionMatrix());
+                fiberShader.setMat4("uProjMatrix", projMatrix);
+                fiberShader.setMat4("uViewMatrix", viewMatrix);
+                fiberShader.setMat4("uModelMatrix", modelMatrix);
             
                 fibersVertexArray->Bind();
-                glDrawArrays(GL_LINE_STRIP, 0, fibersVertexCount);
-                fibersVertexArray->Unbind();
-            }
+
+                fiberShader.setFloat("R_ply", 0.1f);
+                fiberShader.setFloat("Rmin", 0.1f);
+                fiberShader.setFloat("Rmax", 0.2f);
+                fiberShader.setFloat("theta", 1.0f);
+                fiberShader.setFloat("s", 2.0f);  // length of rotation
+                fiberShader.setFloat("eN", 1.0f); // ellipse scaling factor along Normal
+                fiberShader.setFloat("eB", 1.0f); // ellipse scaling factor along Bitangent
+
+                fiberShader.setFloat("R[0]", 0.20f); // distance from fiber i to ply center
+                fiberShader.setFloat("R[1]", 0.25f); // distance from fiber i to ply center
+                fiberShader.setFloat("R[2]", 0.30f); // distance from fiber i to ply center
+                fiberShader.setFloat("R[3]", 0.35f); // distance from fiber i to ply center
+
+                // Fragment related uniforms
+                fiberShader.setBool("uUseAmbientOcclusion", useAmbientOcclusion); // distance from fiber i to ply center
+                if (useShadowMapping)
+                {
+                    fiberShader.setMat4("uViewToLightMatrix", directional.GetProjectionMatrix() * directional.GetViewMatrix() * viewInverseMatrix);
+                    shadowMap.GetTexture()->Attach(0);
+                    fiberShader.setInt("uShadowMap", 0);
+                }
+                else 
+                {
+                    fiberShader.setMat4("uViewToLightMatrix", glm::mat4(0.0));
+                    Texture2D::ClearUnit(0);
+                    fiberShader.setInt("uShadowMap", 0);
+                }
+
+                glDrawElements(GL_PATCHES, fibersIndexBuffer->GetCount(), GL_UNSIGNED_INT, nullptr);
+                    }
             
             // Render slices of selfShadow to screen
             // slice3DShader.use();
@@ -234,41 +306,13 @@ int main(int argc, char *argv[])
 
             // directional.SetDirection(camera.GetForwardDirection());
 
-            if (showFloor)
-            {
-                shadowMap.Begin(directional.GetViewMatrix(), directional.GetProjectionMatrix());
-                {
-                    if (showFibers)
-                    {
-                        // Render all the objects that cast shadows here
-                        fibersVertexArray->Bind();
-                        glDrawArrays(GL_LINE_STRIP, 0, fibersVertexCount);
-                        fibersVertexArray->Unbind();
-                    }
-                }
-                shadowMap.End();
-                
-                // Render floor
-                lambertShader.use();
-                lambertShader.setMat4("uModelMatrix", glm::mat4(1.0f));
-                lambertShader.setMat4("uViewMatrix", camera.GetViewMatrix());
-                lambertShader.setMat4("uProjMatrix", camera.GetProjectionMatrix());
-                lambertShader.setMat4("uLightSpaceMatrix", directional.GetProjectionMatrix() * directional.GetViewMatrix());
-                lambertShader.setInt("uReceiveShadows", true);
-                shadowMap.GetTexture()->Attach(0);
-                lambertShader.setInt("uShadowMap", 0);
-
-                floorVertexArray->Bind();
-                glDrawElements(GL_TRIANGLES, floorIndexBuffer->GetCount(), GL_UNSIGNED_INT, nullptr);
-                floorVertexArray->Unbind();
-            }
 
             if (showClothMesh)
             {
                 lambertShader.use();
                 lambertShader.setMat4("uModelMatrix", glm::mat4(1.0f));
-                lambertShader.setMat4("uViewMatrix", camera.GetViewMatrix());
-                lambertShader.setMat4("uProjMatrix", camera.GetProjectionMatrix());
+                lambertShader.setMat4("uViewMatrix", viewMatrix);
+                lambertShader.setMat4("uProjMatrix", projMatrix);
                 lambertShader.setInt("uReceiveShadows", false);
 
                 glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -333,6 +377,18 @@ int main(int argc, char *argv[])
                     ImGui::SameLine();
                     ImGui::Checkbox("##ShowFloorCB", &showFloor);
                 
+                    indentedLabel("Ambient occlusion:");
+                    ImGui::SameLine();
+                    ImGui::Checkbox("##UseAmbientOcclusion", &useAmbientOcclusion);
+
+                    indentedLabel("Shadow Mapping:");
+                    ImGui::SameLine();
+                    ImGui::Checkbox("##UseShadowMapping", &useShadowMapping);
+
+                    indentedLabel("Shadow Map Thickess:");
+                    ImGui::SameLine();
+                    ImGui::DragFloat("##ShadowMapThicknessSlider", &shadowMapThickness, 0.001f, 0.0f, 1.0);
+
                 }
             }
             ImGui::End();

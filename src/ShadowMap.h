@@ -19,13 +19,17 @@ public:
     inline Texture2DPtr GetTexture() const { return m_framebuffer->GetDepthAttachment(); };
     inline FramebufferPtr GetFramebuffer() const { return m_framebuffer; };
 
-    void Begin(const glm::mat4& lightViewMatrix, const glm::mat4& lightProjMatrix);
-    void End();
+    void Begin(const glm::mat4& lightViewMatrix, const glm::mat4& lightProjMatrix, const float& shadowMapThickness=-1.0f);
+    void Clear();
+    void End() const;
 
 private:
     FramebufferPtr m_framebuffer;
     Shader m_shader;
-    GLint m_restoreViewport[4] = {0, 0, 1600, 900};
+
+    float m_thickness = 0.1f;
+
+    GLint m_restoreViewport[4] = {0, 0, 1280, 720};
 };
 
 
