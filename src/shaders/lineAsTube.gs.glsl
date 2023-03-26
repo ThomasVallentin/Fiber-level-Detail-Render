@@ -15,8 +15,8 @@ in TS_OUT
 
 // == Uniforms ==
 
-uniform mat4 view; 
-uniform mat4 projection;
+uniform mat4 uViewMatrix; 
+uniform mat4 uProjMatrix;
 
 uniform float uThickness = 0.01;
 
@@ -57,14 +57,14 @@ void main()
         vertex = pntA + displacement * uThickness;
         gs_out.position = vertex;
         gs_out.normal = normalize(displacement);
-        gl_Position = projection * vec4(vertex, 1.0);
+        gl_Position = uProjMatrix * vec4(vertex, 1.0);
         EmitVertex();
 
         displacement = cos(theta) * normalB + sin(theta) * bitangentB;
         vertex = pntB + displacement * uThickness;
         gs_out.position = vertex;
         gs_out.normal = normalize(displacement);
-        gl_Position = projection * vec4(vertex, 1.0);
+        gl_Position = uProjMatrix * vec4(vertex, 1.0);
         EmitVertex();
     }
 }  

@@ -16,8 +16,8 @@ in TS_OUT
 
 // == Uniforms ==
 
-uniform mat4 view; 
-uniform mat4 projection;
+uniform mat4 uViewMatrix; 
+uniform mat4 uProjMatrix;
 
 uniform int uPlyCount = 3;
 
@@ -61,7 +61,7 @@ void main()
     gs_out.position = vertex;
     gs_out.normal = normalB;
     gs_out.distanceFromYarnCenter = distance(vertex, yarnCenterB);
-    gl_Position = projection * vec4(vertex, 1.0);
+    gl_Position = uProjMatrix * vec4(vertex, 1.0);
     EmitVertex();
 
     // Bottom left
@@ -69,7 +69,7 @@ void main()
     gs_out.position = vertex;
     gs_out.normal = normalA;
     gs_out.distanceFromYarnCenter = distance(vertex, yarnCenterA);
-    gl_Position = projection * vec4(vertex, 1.0);
+    gl_Position = uProjMatrix * vec4(vertex, 1.0);
     EmitVertex();
 
     // Top right
@@ -77,7 +77,7 @@ void main()
     gs_out.position = vertex;
     gs_out.normal = normalB;
     gs_out.distanceFromYarnCenter = distance(vertex, yarnCenterB);
-    gl_Position = projection * vec4(vertex, 1.0);
+    gl_Position = uProjMatrix * vec4(vertex, 1.0);
     EmitVertex();
 
     // Bottom right
@@ -85,6 +85,6 @@ void main()
     gs_out.position = vertex;
     gs_out.normal = normalA;
     gs_out.distanceFromYarnCenter = distance(vertex, yarnCenterA);
-    gl_Position = projection * vec4(vertex, 1.0);
+    gl_Position = uProjMatrix * vec4(vertex, 1.0);
     EmitVertex();
 }  

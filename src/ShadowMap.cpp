@@ -36,9 +36,9 @@ void ShadowMap::Begin(const glm::mat4& lightViewMatrix, const glm::mat4& lightPr
         m_thickness = shadowMapThickness;
     
     m_shader.use();
-    m_shader.setMat4("model", glm::mat4(1.0f));
-    m_shader.setMat4("view", lightViewMatrix);
-    m_shader.setMat4("projection", lightProjMatrix);
+    m_shader.setMat4("uModelMatrix", glm::mat4(1.0f));
+    m_shader.setMat4("uViewMatrix", lightViewMatrix);
+    m_shader.setMat4("uProjMatrix", lightProjMatrix);
 
     m_shader.setInt("uTessLineCount", 1);  // Rendering the yarn as a single tube
     m_shader.setInt("uTessSubdivisionCount", 4);

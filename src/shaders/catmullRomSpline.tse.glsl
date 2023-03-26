@@ -11,8 +11,8 @@ patch in vec4 pNextPoint;
 
 // == Uniforms
 
-uniform mat4 model;           // the model matrix
-uniform mat4 view;            // the view matrix
+uniform mat4 uModelMatrix;           // the model matrix
+uniform mat4 uViewMatrix;            // the view matrix
 
 
 // == Outputs ==
@@ -71,8 +71,8 @@ void main() {
     normal = normalize(cross(bitangent, tangent));
     
     // Outputs
-    gl_Position      =      view * model * vec4(curvePoint, 1.0);
-    ts_out.normal    = vec3(view * model * vec4(normal, 0.0));
-    ts_out.tangent   = vec3(view * model * vec4(tangent, 0.0));
-    ts_out.bitangent = vec3(view * model * vec4(bitangent, 0.0));
+    gl_Position      =      uViewMatrix * uModelMatrix * vec4(curvePoint, 1.0);
+    ts_out.normal    = vec3(uViewMatrix * uModelMatrix * vec4(normal, 0.0));
+    ts_out.tangent   = vec3(uViewMatrix * uModelMatrix * vec4(tangent, 0.0));
+    ts_out.bitangent = vec3(uViewMatrix * uModelMatrix * vec4(bitangent, 0.0));
 }

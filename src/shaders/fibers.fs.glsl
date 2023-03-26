@@ -14,7 +14,7 @@ in GS_OUT
 
 // == Uniforms ==
 
-uniform mat4 view;
+uniform mat4 uViewMatrix;
 
 uniform int uPlyCount = 3;
 uniform float R_ply;
@@ -92,7 +92,7 @@ float sampleShadows(vec4 lightSpacePosition)
 
 void main()
 {
-    vec3 viewSpaceLightDir = vec3(view * vec4(normalize(vec3(0.0, 1.0, 1.0)), 0.0));
+    vec3 viewSpaceLightDir = vec3(uViewMatrix * vec4(normalize(vec3(0.0, 1.0, 1.0)), 0.0));
     vec3 viewSpaceNormal = normalize(fs_in.normal);
 
     vec3 albedo = sampleAlbedo(vec2(0.0, 0.0));

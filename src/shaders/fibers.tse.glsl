@@ -5,8 +5,8 @@ layout (isolines, equal_spacing) in;
 
 const float PI = 3.14159265;
 
-uniform mat4 model;           // the model matrix
-uniform mat4 view;            // the view matrix
+uniform mat4 uModelMatrix;           // the model matrix
+uniform mat4 uViewMatrix;            // the view matrix
 
 uniform float R_ply; // R_ply
 uniform float Rmin; 
@@ -107,9 +107,9 @@ void main() {
     vec3 displacement_fiber = R_fiber * (cos(thetaI + globalU * 2.0 * theta + rd) * N_ply * eN + sin(thetaI +  globalU * 2.0 * theta + rd) * B_ply * eB);
 
     // Outputs
-    gl_Position = view * model * vec4(yarnCenter + displacement_ply + displacement_fiber, 1.0);
+    gl_Position = uViewMatrix * uModelMatrix * vec4(yarnCenter + displacement_ply + displacement_fiber, 1.0);
     ts_out.globalFiberIndex = int(v * fiberCount);
-    ts_out.yarnCenter = vec3(view * model * vec4(yarnCenter, 1.0));
-    ts_out.fiberNormal = vec3(view * model * vec4(normalize(displacement_ply + displacement_fiber), 0.0));
-    ts_out.yarnTangent = vec3(view * model * vec4(T_yarn, 0.0));
+    ts_out.yarnCenter = vec3(uViewMatrix * uModelMatrix * vec4(yarnCenter, 1.0));
+    ts_out.fiberNormal = vec3(uViewMatrix * uModelMatrix * vec4(normalize(displacement_ply + displacement_fiber), 0.0));
+    ts_out.yarnTangent = vec3(uViewMatrix * uModelMatrix * vec4(T_yarn, 0.0));
 }

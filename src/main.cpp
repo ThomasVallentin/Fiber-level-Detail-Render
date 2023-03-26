@@ -152,10 +152,10 @@ int main(int argc, char *argv[])
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        glm::mat4 projection = camera.GetProjectionMatrix();
-        glm::mat4 view = camera.GetViewMatrix();
-        glm::mat4 viewInverse = glm::inverse(camera.GetViewMatrix());
-        glm::mat4 model = glm::mat4(1.0f);
+        glm::mat4 projMatrix = camera.GetProjectionMatrix();
+        glm::mat4 viewMatrix = camera.GetViewMatrix();
+        glm::mat4 viewInverseMatrix = glm::inverse(camera.GetViewMatrix());
+        glm::mat4 modelMatrix = glm::mat4(1.0f);
 
         // Render the shadow map
         // directional.SetDirection(camera.GetForwardDirection());
@@ -179,9 +179,9 @@ int main(int argc, char *argv[])
         }
 
         fiberShader.use();
-        fiberShader.setMat4("projection", projection);
-        fiberShader.setMat4("view", view);
-        fiberShader.setMat4("model", model);
+        fiberShader.setMat4("uProjMatrix", projMatrix);
+        fiberShader.setMat4("uViewMatrix", viewMatrix);
+        fiberShader.setMat4("uModelMatrix", modelMatrix);
     
         fibersVertexArray->Bind();
 
@@ -202,7 +202,7 @@ int main(int argc, char *argv[])
         fiberShader.setBool("uUseAmbientOcclusion", useAmbientOcclusion); // distance from fiber i to ply center
         if (useShadowMapping)
         {
-            fiberShader.setMat4("uViewToLightMatrix", directional.GetProjectionMatrix() * directional.GetViewMatrix() * viewInverse);
+            fiberShader.setMat4("uViewToLightMatrix", directional.GetProjectionMatrix() * directional.GetViewMatrix() * viewInverseMatrix);
             shadowMap.GetTexture()->Attach(0);
             fiberShader.setInt("uShadowMap", 0);
         }
