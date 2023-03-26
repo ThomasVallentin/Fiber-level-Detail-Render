@@ -9,6 +9,8 @@ in GS_OUT
     vec3 position;
     vec3 normal;
     float distanceFromYarnCenter;
+    vec3 selfShadowSample;
+    float plyRotation;
 } fs_in;
 
 
@@ -96,12 +98,13 @@ void main()
     vec3 viewSpaceNormal = normalize(fs_in.normal);
 
     vec3 albedo = sampleAlbedo(vec2(0.0, 0.0));
-    float ambientOcclusion = sampleAmbientOcclusion();
+    float ambientOcclusion = min(1.0, max(sampleAmbientOcclusion(), 0.0) + 0.2);
     float shadowMask = 1.0 - sampleShadows(uViewToLightMatrix * vec4(fs_in.position, 1.0));
-
+    float selfShadows = min(1.0, (-fs_in.selfShadowSample.x + abs(fs_in.selfShadowSample.y)) * 3.0) + 0.6;
     // vec3 color = vec3(shadowMask);
-    vec3 color = shadowMask * ambientOcclusion * albedo;
+    vec3 color = selfShadows * shadowMask * ambientOcclusion * albedo;
     // vec3 color = shadowMask * ambientOcclusion * albedo * vec3(max(0.0, dot(viewSpaceNormal, viewSpaceLightDir)));
 
     FragColor = vec4(vec3(color), 1.0);
+
 }
