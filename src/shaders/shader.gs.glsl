@@ -3,6 +3,8 @@ layout (lines) in;
 layout (triangle_strip, max_vertices = 4) out;
 
 
+// == Inputs ==
+
 in TS_OUT 
 {
     int globalFiberIndex;
@@ -12,24 +14,32 @@ in TS_OUT
 } gs_in[]; 
 
 
+// == Uniforms ==
+
 uniform mat4 view; 
 uniform mat4 projection;
 
-uniform float Rmin;
 uniform int uPlyCount = 3;
+
+
+// == Outputs ==
 
 out GS_OUT 
 {
+    flat int fiberIndex;
+    vec3 position;
     vec3 normal;
     float distanceFromYarnCenter;
 } gs_out;
 
 
-void main() {    
-    float thickness = 0.005;
+void main() 
+{    
+    float thickness = 0.003;
 
-    // if (gs_in[0].globalFiberIndex < uPlyCount) 
-    //     thickness = Rmin;
+    gs_out.fiberIndex = gs_in[0].globalFiberIndex;
+    if (gs_out.fiberIndex < uPlyCount) 
+        thickness *= 10.0;
 
     vec3 pntA = gl_in[0].gl_Position.xyz;
     vec3 pntB = gl_in[1].gl_Position.xyz;
@@ -38,37 +48,43 @@ void main() {
 
     vec3 toCameraA = normalize(-pntA);
     vec3 frontFacingBitangentA = normalize(cross(toCameraA, tangentA));
-    vec3 normalA = gs_in[0].fiberNormal;
+    vec3 normalA     = gs_in[0].fiberNormal;
+    vec3 yarnCenterA = gs_in[0].yarnCenter;
 
     vec3 toCameraB = normalize(-pntB);
     vec3 frontFacingBitangentB = normalize(cross(toCameraB, tangentB));
-    vec3 normalB = gs_in[1].fiberNormal;
+    vec3 normalB     = gs_in[1].fiberNormal;
+    vec3 yarnCenterB = gs_in[1].yarnCenter;
 
     // Top left
     vec3 vertex = pntB - frontFacingBitangentA * thickness;
+    gs_out.position = vertex;
     gs_out.normal = normalB;
-    gs_out.distanceFromYarnCenter = distance(vertex, gs_in[1].yarnCenter);
+    gs_out.distanceFromYarnCenter = distance(vertex, yarnCenterB);
     gl_Position = projection * vec4(vertex, 1.0);
     EmitVertex();
 
     // Bottom left
     vertex = pntA - frontFacingBitangentA * thickness;
+    gs_out.position = vertex;
     gs_out.normal = normalA;
-    gs_out.distanceFromYarnCenter = distance(vertex, gs_in[0].yarnCenter);
+    gs_out.distanceFromYarnCenter = distance(vertex, yarnCenterA);
     gl_Position = projection * vec4(vertex, 1.0);
     EmitVertex();
 
     // Top right
     vertex = pntB + frontFacingBitangentA * thickness;
+    gs_out.position = vertex;
     gs_out.normal = normalB;
-    gs_out.distanceFromYarnCenter = distance(vertex, gs_in[1].yarnCenter);
+    gs_out.distanceFromYarnCenter = distance(vertex, yarnCenterB);
     gl_Position = projection * vec4(vertex, 1.0);
     EmitVertex();
 
     // Bottom right
     vertex = pntA + frontFacingBitangentA * thickness;
+    gs_out.position = vertex;
     gs_out.normal = normalA;
-    gs_out.distanceFromYarnCenter = distance(vertex, gs_in[0].yarnCenter);
+    gs_out.distanceFromYarnCenter = distance(vertex, yarnCenterA);
     gl_Position = projection * vec4(vertex, 1.0);
     EmitVertex();
 }  
