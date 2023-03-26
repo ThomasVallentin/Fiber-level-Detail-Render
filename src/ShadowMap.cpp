@@ -22,8 +22,8 @@ ShadowMap::ShadowMap(const uint32_t& resolution)
 
     // Custom shader that renders the yarns as tubes instead of generating all the fibers
     m_shader = Shader(resolver.Resolve("src/shaders/fibers.vs.glsl").c_str(), 
-                      resolver.Resolve("src/shaders/empty.fs.glsl").c_str(),
-                      resolver.Resolve("src/shaders/lineStripAsTube.gs.glsl").c_str(),
+                      resolver.Resolve("src/shaders/utility/empty.fs.glsl").c_str(),
+                      resolver.Resolve("src/shaders/lineAsTube.gs.glsl").c_str(),
                       resolver.Resolve("src/shaders/fibers.tsc.glsl").c_str(),
                       resolver.Resolve("src/shaders/catmullRomSpline.tse.glsl").c_str());
 }

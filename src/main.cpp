@@ -110,8 +110,8 @@ int main(int argc, char *argv[])
     DirectionalLight directional(glm::normalize(glm::vec3(0.5f, -0.5f, -0.5f)), {0.8f, 0.8f, 0.8f});
     ShadowMap shadowMap(4096);
     
-    Shader blitChannelShader(resolver.Resolve("src/shaders/fullScreen.vs.glsl").c_str(), 
-                             resolver.Resolve("src/shaders/blitTextureChannel.fs.glsl").c_str());
+    Shader blitChannelShader(resolver.Resolve("src/shaders/utility/fullScreen.vs.glsl").c_str(), 
+                             resolver.Resolve("src/shaders/utility/blitTextureChannel.fs.glsl").c_str());
 
     // Simple plane to visualize the casted shadows
     std::vector<Vertex> planeVertices = {{{-10.0, 0.0, -10.0}, {0.0, 1.0, 0.0}, {0.0, 0.0}},
@@ -138,8 +138,8 @@ int main(int argc, char *argv[])
     // SelfShadowsSettings selfShadowsSettings{512, 16};
     // std::shared_ptr<Texture3D> selfShadowsTexture = SelfShadows::GenerateTexture(selfShadowsSettings);    
 
-    // Shader slice3DShader(resolver.Resolve("src/shaders/fullScreen.vs.glsl").c_str(),
-    //                      resolver.Resolve("src/shaders/3DTextureSlice.fs.glsl").c_str());
+    // Shader slice3DShader(resolver.Resolve("src/shaders/utility/fullScreen.vs.glsl").c_str(),
+    //                      resolver.Resolve("src/shaders/utility/3DTextureSlice.fs.glsl").c_str());
 
     glViewport(0, 0, window.GetWidth(), window.GetHeight());
     while (!window.ShouldClose()) {

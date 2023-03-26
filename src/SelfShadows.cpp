@@ -14,9 +14,9 @@ std::shared_ptr<Texture3D> SelfShadows::GenerateTexture(const SelfShadowsSetting
     if (!s_densityShader)
     {
         Resolver& resolver = Resolver::Get();
-        s_densityShader = std::make_shared<Shader>(resolver.Resolve("src/shaders/fullScreen.vs.glsl").c_str(),
+        s_densityShader = std::make_shared<Shader>(resolver.Resolve("src/shaders/utility/fullScreen.vs.glsl").c_str(),
                                                    resolver.Resolve("src/shaders/selfShadowsDensity.fs.glsl").c_str());
-        s_absorptionShader = std::make_shared<Shader>(resolver.Resolve("src/shaders/fullScreen.vs.glsl").c_str(),
+        s_absorptionShader = std::make_shared<Shader>(resolver.Resolve("src/shaders/utility/fullScreen.vs.glsl").c_str(),
                                                       resolver.Resolve("src/shaders/selfShadows.fs.glsl").c_str());
     }
 
