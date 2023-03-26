@@ -65,14 +65,14 @@ void main() {
     // Yarn center using a catmull rom interpolation of the control points
     vec3 curvePoint = catmullCurve(cp1, cp2, cp3, cp4, u);
 
+    vec3 normal = vec3(0.0, 1.0, 0.0);
     vec3 tangent = normalize(catmullDerivative(cp1, cp2, cp3, cp4, u));
-    vec3 normal = normalize(catmullSecondDerivative(cp1, cp2, cp3, cp4, u));
     vec3 bitangent = normalize(cross(normal, tangent));
     normal = normalize(cross(bitangent, tangent));
     
     // Outputs
     gl_Position      =      uViewMatrix * uModelMatrix * vec4(curvePoint, 1.0);
-    ts_out.normal    = vec3(uViewMatrix * uModelMatrix * vec4(normal, 0.0));
-    ts_out.tangent   = vec3(uViewMatrix * uModelMatrix * vec4(tangent, 0.0));
-    ts_out.bitangent = vec3(uViewMatrix * uModelMatrix * vec4(bitangent, 0.0));
+    ts_out.normal    = vec3(uViewMatrix * uModelMatrix * vec4(normal,     0.0));
+    ts_out.tangent   = vec3(uViewMatrix * uModelMatrix * vec4(tangent,    0.0));
+    ts_out.bitangent = vec3(uViewMatrix * uModelMatrix * vec4(bitangent,  0.0));
 }
