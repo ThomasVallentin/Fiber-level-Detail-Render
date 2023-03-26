@@ -34,10 +34,15 @@ float deltaTime = 0.0f;
 float prevTime = 0.0f;
 
 // Rendering parameters
-bool useAmbientOcclusion = true;
-bool useShadowMapping = true;
+bool useAmbientOcclusion = false;
+bool useShadowMapping = false;
 
 float shadowMapThickness = 0.15f;
+
+glm::vec3 initLightDirection = glm::normalize(glm::vec3(0.5f, -0.5f, -0.5f));
+float lightRotation = 0.0f;
+bool animateLightRotation = false;
+
 
 int main(int argc, char *argv[])
 {
@@ -68,12 +73,21 @@ int main(int argc, char *argv[])
     std::vector<std::vector<glm::vec3>> openFibersCP;
     readBCC(resolver.Resolve("resources/fiber.bcc"), closedFibersCP, openFibersCP);
 
+    // Merge all the curves into a single vector to draw all of them in a single drawcall
+    std::vector<glm::vec3> controlPoints;
+    for (const auto& fiber : closedFibersCP)
+    {
+        for (const auto& cPoints : fiber)
+            controlPoints.push_back(cPoints);
+        controlPoints.push_back(fiber.front());
+    }
+    for (const auto& fiber : openFibersCP)
+        for (const auto& cPoints : fiber)
+            controlPoints.push_back(cPoints);
+        
     // Send the data to OpenGL
-    // openFibersCP[0] = {{0, 0, 0}, {0.5, 0.5, 0.25}, {1, 0, 0.5}, {1.5, 0.5, 0.25}, 
-    //                     {2, 0, 0}, {2.5, 0.5, 0.25}, {3, 0, 0.5}, {3.5, 0.5, 0.25}};
-
-    uint32_t fibersVertexCount = openFibersCP[0].size();
-    auto fibersVertexBuffer = VertexBuffer::Create(openFibersCP[0].data(), 
+    uint32_t fibersVertexCount = controlPoints.size();
+    auto fibersVertexBuffer = VertexBuffer::Create(controlPoints.data(), 
                                                    fibersVertexCount * sizeof(glm::vec3));
     fibersVertexBuffer->SetLayout({{"Position",  3, GL_FLOAT, false}});
 
@@ -107,7 +121,7 @@ int main(int argc, char *argv[])
     glBindVertexArray(dummyVAO);
 
     // Shadow mapping
-    DirectionalLight directional(glm::normalize(glm::vec3(0.5f, -0.5f, -0.5f)), {0.8f, 0.8f, 0.8f});
+    DirectionalLight directional(initLightDirection, {0.8f, 0.8f, 0.8f});
     ShadowMap shadowMap(4096);
     
     Shader blitChannelShader(resolver.Resolve("src/shaders/utility/fullScreen.vs.glsl").c_str(), 
@@ -157,9 +171,13 @@ int main(int argc, char *argv[])
         glm::mat4 viewInverseMatrix = glm::inverse(camera.GetViewMatrix());
         glm::mat4 modelMatrix = glm::mat4(1.0f);
 
-        // Render the shadow map
+        // Update light position
         // directional.SetDirection(camera.GetForwardDirection());
-        directional.SetDirection(glm::vec3(glm::rotate(glm::mat4(1.0f), 0.1f, {0.0f, 1.0f, 0.0f}) * glm::vec4(directional.GetDirection(), 1.0f)));
+        if (animateLightRotation)
+            lightRotation += deltaTime * 25.0f - (lightRotation > 180.0f) * 360.0f;
+        directional.SetDirection(glm::vec3(glm::rotate(glm::mat4(1.0f), glm::radians(lightRotation), {0.0f, 1.0f, 0.0f}) * glm::vec4(initLightDirection, 1.0f)));
+
+        // Render the shadow map
         if (useShadowMapping)
         {    
             shadowMap.Begin(directional.GetViewMatrix(), directional.GetProjectionMatrix(), shadowMapThickness);
@@ -198,6 +216,10 @@ int main(int argc, char *argv[])
         fiberShader.setFloat("R[1]", 0.25f); // distance from fiber i to ply center
         fiberShader.setFloat("R[2]", 0.30f); // distance from fiber i to ply center
         fiberShader.setFloat("R[3]", 0.35f); // distance from fiber i to ply center
+
+        fiberShader.setInt("uTessLineCount", 64); // distance from fiber i to ply center
+        fiberShader.setInt("uTessSubdivisionCount", 4);
+        fiberShader.setVec3("uLightDirection", glm::vec3(viewMatrix * glm::vec4(directional.GetDirection(), 0.0)));
 
         // Fragment related uniforms
         fiberShader.setBool("uUseAmbientOcclusion", useAmbientOcclusion); // distance from fiber i to ply center
@@ -274,6 +296,18 @@ int main(int argc, char *argv[])
                 indentedLabel("Shadow Map Thickess:");
                 ImGui::SameLine();
                 ImGui::DragFloat("##ShadowMapThicknessSlider", &shadowMapThickness, 0.001f, 0.0f, 1.0);
+
+                // indentedLabel("Self Shadows:");
+                // ImGui::SameLine();
+                // ImGui::Checkbox("##SelfShadowsCheckBox", nullptr);
+
+                indentedLabel("Light Orientation:");
+                ImGui::SameLine();
+                ImGui::DragFloat("##LightOrientation", &lightRotation, 0.5f, -180.0f, 180.0f, "%.1f");
+                
+                indentedLabel("Animated light:");
+                ImGui::SameLine();
+                ImGui::Checkbox("##AnimatedLightCheckBox", &animateLightRotation);
             }
         }
 

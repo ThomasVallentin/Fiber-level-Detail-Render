@@ -31,8 +31,8 @@ private:
     glm::vec3 m_color = {1.0f, 1.0f, 1.0f};
 
     float m_nearClip =  0.1f;
-    float m_farClip  = 30.0f;
-    float m_projSize = 15.0f;
+    float m_farClip  = 50.0f;
+    float m_projSize = 30.0f;
 
     glm::vec3 m_direction = {0.0f, 0.0f, 1.0f};
     glm::mat4 m_viewMatrix;
