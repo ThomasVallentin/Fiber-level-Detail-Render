@@ -14,6 +14,7 @@ public:
                      const glm::vec3& color, 
                      const float& intensity=1.0f);
 
+    inline glm::vec3 GetDirection() const { return m_direction; }
     void SetDirection(const glm::vec3& direction);
     void SetProjSize(const float& size);
     void SetClipPlanes(const float& nearClip, const float& farClip);
@@ -30,8 +31,8 @@ private:
     glm::vec3 m_color = {1.0f, 1.0f, 1.0f};
 
     float m_nearClip =  0.1f;
-    float m_farClip  = 20.0f;
-    float m_projSize = 10.0f;
+    float m_farClip  = 30.0f;
+    float m_projSize = 15.0f;
 
     glm::vec3 m_direction = {0.0f, 0.0f, 1.0f};
     glm::mat4 m_viewMatrix;

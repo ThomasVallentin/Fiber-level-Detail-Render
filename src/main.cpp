@@ -159,6 +159,7 @@ int main(int argc, char *argv[])
 
         // Render the shadow map
         // directional.SetDirection(camera.GetForwardDirection());
+        directional.SetDirection(glm::vec3(glm::rotate(glm::mat4(1.0f), 0.1f, {0.0f, 1.0f, 0.0f}) * glm::vec4(directional.GetDirection(), 1.0f)));
         if (useShadowMapping)
         {    
             shadowMap.Begin(directional.GetViewMatrix(), directional.GetProjectionMatrix(), shadowMapThickness);
