@@ -46,6 +46,8 @@ void WrapDeformer::Initialize(const std::vector<glm::vec3>& points,
         m_bindings.push_back(triangleIndex);
         m_coordinates.push_back({barycentric.x, barycentric.y, barycentric.z, normalOffset});
     }
+
+    m_restPoints = points;
 }
 
 void WrapDeformer::Deform(std::vector<glm::vec3>& points, 
@@ -70,4 +72,49 @@ void WrapDeformer::Deform(std::vector<glm::vec3>& points,
 
         points[i] = BarycentricToCartesian(barycentric, v1, v2, v3) + normal * normalOffset;
     }
+
+    ApplySmooth(points);
+}
+
+
+void WrapDeformer::ApplySmooth(std::vector<glm::vec3>& points) const
+{
+    if (m_iterations <= 0)
+        return;
+
+    std::vector<glm::vec3> deltas = points;
+    std::vector<glm::vec3> deltas2(points.size());
+    for (size_t i = 0 ; i < points.size() ; i++)
+        deltas[i] -= m_restPoints[i];
+        
+    auto* sources = &deltas;
+    auto* smoothed = &deltas2;
+    for (size_t n = 0 ; n < m_iterations ; n++)
+    {
+        for (size_t i = 0 ; i < points.size() ; i++)
+        {
+            glm::vec3 delta = (*sources)[i];
+            float weight = 1.0f;
+
+            if (i > 0)
+            {
+                delta += deltas[i - 1];
+                weight += 1.0f;
+            }
+
+            if (i < points.size())
+            {
+                delta += deltas[i + 1];
+                weight += 1.0f;
+            }
+
+            (*smoothed)[i] = delta / weight;
+        }
+
+        std::swap(smoothed, sources);
+    }
+
+    for (size_t i = 0 ; i < points.size() ; i++)
+        points[i] = m_restPoints[i] + (*sources)[i];
+        
 }

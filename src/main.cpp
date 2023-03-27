@@ -71,6 +71,9 @@ bool animateLightRotation = false;
 
 float selfShadowRotation = 0.0f;
 
+bool enableSimulation = false;
+
+
 int main(int argc, char *argv[])
 {
     auto& resolver = Resolver::Init(fs::weakly_canonical(argv[0])
@@ -217,7 +220,7 @@ int main(int argc, char *argv[])
             // Mesh animation
             const ProfilingScope scope("Mesh animation");  
 
-            if (showFibers || showClothMesh)
+            if (enableSimulation && (showFibers || showClothMesh))
             {
                 massSpringGravityWindSolver(partSys, h);
                 for (int i = 0 ; i < partSys.particles.size() ; ++i)
@@ -404,9 +407,9 @@ int main(int argc, char *argv[])
                         ImGui::DragFloat((std::string("##") + scope.name + "TimeDrag").c_str(), &elapsedTime, 1.0f, 0.0f, 0.0f, "%.3fms");
                         ImGui::EndDisabled();
                     }
+                    
+                    ImGui::Spacing();
                 }
-
-                ImGui::Spacing();
                 
                 if (ImGui::CollapsingHeader("Rendering parameters", ImGuiTreeNodeFlags_DefaultOpen))
                 {
@@ -430,7 +433,6 @@ int main(int argc, char *argv[])
                     ImGui::SameLine();
                     ImGui::Checkbox("##UseShadowMapping", &useShadowMapping);
                 
-
                     indentedLabel("Shadow Map Thickess:");
                     ImGui::SameLine();
                     ImGui::DragFloat("##ShadowMapThicknessSlider", &shadowMapThickness, 0.001f, 0.0f, 1.0);
@@ -453,6 +455,20 @@ int main(int argc, char *argv[])
                     ImGui::SameLine();
                     ImGui::Checkbox("##AnimatedLightCheckBox", &animateLightRotation);
                 }
+
+                if (ImGui::CollapsingHeader("Simulation", ImGuiTreeNodeFlags_DefaultOpen))
+                {
+                    indentedLabel("Enable simulation:");
+                    ImGui::SameLine();
+                    ImGui::Checkbox("##EnableSimulation", &enableSimulation);
+
+                    indentedLabel("Smoothing iterations:");
+                    ImGui::SameLine();
+                    int iterations = wrap.GetSmoothIterations();
+                    if (ImGui::DragInt("##SmoothIteration", &iterations, 0.1f, 0, 10, "%d steps"))
+                        wrap.SetSmoothIterations(iterations);
+                }
+
             }
             ImGui::End();
 
