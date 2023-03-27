@@ -39,8 +39,9 @@ float deltaTime = 0.0f;
 float prevTime = 0.0f;
 
 // Rendering parameters
-bool useAmbientOcclusion = false;
-bool useShadowMapping = false;
+bool useAmbientOcclusion = true;
+bool useShadowMapping = true;
+bool useSelfShadows = true;
 
 float shadowMapThickness = 0.15f;
 
@@ -242,7 +243,7 @@ int main(int argc, char *argv[])
             fiberShader.setInt("uShadowMap", SHADOW_MAP_TEXTURE_UNIT);
         }
 
-        if (true)
+        if (useSelfShadows)
         {
             selfShadowsTexture->Attach(SELF_SHADOWS_TEXTURE_UNIT);
             fiberShader.setInt("uSelfShadowsTexture", SELF_SHADOWS_TEXTURE_UNIT);
@@ -316,13 +317,15 @@ int main(int argc, char *argv[])
                 ImGui::SameLine();
                 ImGui::DragFloat("##ShadowMapThicknessSlider", &shadowMapThickness, 0.001f, 0.0f, 1.0);
 
+                indentedLabel("Self Shadows:");
+                ImGui::SameLine();
+                ImGui::Checkbox("##UseSelfShadows", &useSelfShadows);
+
+                ImGui::BeginDisabled(!useSelfShadows);
                 indentedLabel("selfShadowRotation:");
                 ImGui::SameLine();
                 ImGui::DragFloat("##selfShadowRotation", &selfShadowRotation, 0.05f, -180.0f, 180.0f);
-
-                // indentedLabel("Self Shadows:");
-                // ImGui::SameLine();
-                // ImGui::Checkbox("##SelfShadowsCheckBox", nullptr);
+                ImGui::EndDisabled();
 
                 indentedLabel("Light Orientation:");
                 ImGui::SameLine();

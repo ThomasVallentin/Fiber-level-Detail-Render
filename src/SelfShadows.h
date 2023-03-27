@@ -1,5 +1,12 @@
 #ifndef SELFSHADOWS_H
 #define SELFSHADOWS_H
+
+
+#include "Base/Framebuffer.h"
+#include "Base/Texture2D.h"
+#include "Base/Texture3D.h"
+#include "Base/Shader.h"
+
 /*
       Self-Shadows
 
@@ -12,11 +19,6 @@ Step 3 : Sample the 3D texture based on the light direction / orientation (inter
 
 */
 
-#include "Base/Framebuffer.h"
-#include "Base/Texture2D.h"
-#include "Base/Texture3D.h"
-#include "Base/Shader.h"
-
 struct SelfShadowsSettings
 {
     float textureSize = 512;
@@ -24,7 +26,7 @@ struct SelfShadowsSettings
 
     uint32_t plyCount = 3;
     float plyRadius = 0.1;     // P_ply
-    float fiberRadius = 0.12;  // Rmin
+    float fiberRadius = 0.1;  // Rmin
     float densityE = 0.25;
     float densityB = 0.75;
     float eN = 1.0;
