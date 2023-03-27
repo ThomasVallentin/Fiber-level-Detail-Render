@@ -77,7 +77,7 @@ int main(int argc, char *argv[])
                                     .parent_path()
                                     .parent_path());
 
-    auto window = Window({windowWidth, windowHeight, "Fiber-Level Detail Render"});
+    auto window = Window({SCR_WIDTH, SCR_HEIGHT, "Fiber-Level Detail Render"});
     auto eventCallback = [&](Event* event) {
         switch (event->GetType()) 
         {
@@ -162,7 +162,7 @@ int main(int argc, char *argv[])
     clothVertexArray->Unbind();
 
     WrapDeformer wrap;
-    wrap.Initialize(fiberPoints, clothVertices, clothIndices);
+    wrap.Initialize(controlPoints, clothVertices, clothIndices);
 
     // Shadow mapping
     DirectionalLight directional(initLightDirection, {0.8f, 0.8f, 0.8f});
@@ -239,9 +239,9 @@ int main(int argc, char *argv[])
             
             if (showFibers)
             {
-                wrap.Deform(fiberPoints, clothVertices, clothIndices);
+                wrap.Deform(controlPoints, clothVertices, clothIndices);
                 fibersVertexBuffer->Bind();
-                fibersVertexBuffer->SetData(fiberPoints.data(), 
+                fibersVertexBuffer->SetData(controlPoints.data(), 
                                             fibersVertexCount * sizeof(glm::vec3));
                 fibersVertexBuffer->Unbind();
             }
@@ -259,31 +259,31 @@ int main(int argc, char *argv[])
             glm::mat4 viewInverseMatrix = glm::inverse(camera.GetViewMatrix());
             glm::mat4 modelMatrix = glm::mat4(1.0f);
 
-        // Update light position
-        // directional.SetDirection(camera.GetForwardDirection());
-        if (animateLightRotation)
-            lightRotation += deltaTime * 25.0f - (lightRotation > 180.0f) * 360.0f;
-        directional.SetDirection(glm::vec3(glm::rotate(glm::mat4(1.0f), glm::radians(lightRotation), {0.0f, 1.0f, 0.0f}) * glm::vec4(initLightDirection, 1.0f)));
+            // Update light position
+            // directional.SetDirection(camera.GetForwardDirection());
+            if (animateLightRotation)
+                lightRotation += deltaTime * 25.0f - (lightRotation > 180.0f) * 360.0f;
+            directional.SetDirection(glm::vec3(glm::rotate(glm::mat4(1.0f), glm::radians(lightRotation), {0.0f, 1.0f, 0.0f}) * glm::vec4(initLightDirection, 1.0f)));
 
-        // Render the shadow map
-        if (useShadowMapping)
-        {    
-            shadowMap.Begin(directional.GetViewMatrix(), directional.GetProjectionMatrix(), shadowMapThickness);
-            {
-                // Render all the objects that cast shadows here
-                fibersVertexArray->Bind();
-                glEnable(GL_CULL_FACE);
-                glCullFace(GL_BACK);
-                glDrawElements(GL_PATCHES, fibersIndexBuffer->GetCount(), GL_UNSIGNED_INT, nullptr);
-                glDisable(GL_CULL_FACE);
-                fibersVertexArray->Unbind();
+            // Render the shadow map
+            if (useShadowMapping)
+            {    
+                shadowMap.Begin(directional.GetViewMatrix(), directional.GetProjectionMatrix(), shadowMapThickness);
+                {
+                    // Render all the objects that cast shadows here
+                    fibersVertexArray->Bind();
+                    glEnable(GL_CULL_FACE);
+                    glCullFace(GL_BACK);
+                    glDrawElements(GL_PATCHES, fibersIndexBuffer->GetCount(), GL_UNSIGNED_INT, nullptr);
+                    glDisable(GL_CULL_FACE);
+                    fibersVertexArray->Unbind();
+                }
+                shadowMap.End();
             }
-            shadowMap.End();
-        }
-        else
-        {
-            shadowMap.Clear();
-        }
+            else
+            {
+                shadowMap.Clear();
+            }
 
             if (showFibers)
             {
@@ -302,53 +302,53 @@ int main(int argc, char *argv[])
                 fiberShader.setFloat("eN", 1.0f); // ellipse scaling factor along Normal
                 fiberShader.setFloat("eB", 1.0f); // ellipse scaling factor along Bitangent
 
-        fiberShader.setFloat("R[0]", 0.20f); // distance from fiber i to ply center
-        fiberShader.setFloat("R[1]", 0.25f); // distance from fiber i to ply center
-        fiberShader.setFloat("R[2]", 0.30f); // distance from fiber i to ply center
-        fiberShader.setFloat("R[3]", 0.35f); // distance from fiber i to ply center
+                fiberShader.setFloat("R[0]", 0.20f); // distance from fiber i to ply center
+                fiberShader.setFloat("R[1]", 0.25f); // distance from fiber i to ply center
+                fiberShader.setFloat("R[2]", 0.30f); // distance from fiber i to ply center
+                fiberShader.setFloat("R[3]", 0.35f); // distance from fiber i to ply center
 
-        fiberShader.setInt("uTessLineCount", 64); // distance from fiber i to ply center
-        fiberShader.setInt("uTessSubdivisionCount", 4);
-        fiberShader.setVec3("uLightDirection", glm::vec3(viewMatrix * glm::vec4(directional.GetDirection(), 0.0)));
+                fiberShader.setInt("uTessLineCount", 64); // distance from fiber i to ply center
+                fiberShader.setInt("uTessSubdivisionCount", 4);
+                fiberShader.setVec3("uLightDirection", glm::vec3(viewMatrix * glm::vec4(directional.GetDirection(), 0.0)));
 
-        // Fragment related uniforms
-        fiberShader.setBool("uUseAmbientOcclusion", useAmbientOcclusion); // distance from fiber i to ply center
-        if (useShadowMapping)
-        {
-            fiberShader.setMat4("uViewToLightMatrix", directional.GetProjectionMatrix() * directional.GetViewMatrix() * viewInverseMatrix);
-            shadowMap.GetTexture()->Attach(SHADOW_MAP_TEXTURE_UNIT);
-            fiberShader.setInt("uShadowMap", SHADOW_MAP_TEXTURE_UNIT);
-        }
-        else 
-        {
-            fiberShader.setMat4("uViewToLightMatrix", glm::mat4(0.0));
-            Texture2D::ClearUnit(SHADOW_MAP_TEXTURE_UNIT);
-            fiberShader.setInt("uShadowMap", SHADOW_MAP_TEXTURE_UNIT);
-        }
+                // Fragment related uniforms
+                fiberShader.setBool("uUseAmbientOcclusion", useAmbientOcclusion); // distance from fiber i to ply center
+                if (useShadowMapping)
+                {
+                    fiberShader.setMat4("uViewToLightMatrix", directional.GetProjectionMatrix() * directional.GetViewMatrix() * viewInverseMatrix);
+                    shadowMap.GetTexture()->Attach(SHADOW_MAP_TEXTURE_UNIT);
+                    fiberShader.setInt("uShadowMap", SHADOW_MAP_TEXTURE_UNIT);
+                }
+                else 
+                {
+                    fiberShader.setMat4("uViewToLightMatrix", glm::mat4(0.0));
+                    Texture2D::ClearUnit(SHADOW_MAP_TEXTURE_UNIT);
+                    fiberShader.setInt("uShadowMap", SHADOW_MAP_TEXTURE_UNIT);
+                }
 
-        if (useSelfShadows)
-        {
-            selfShadowsTexture->Attach(SELF_SHADOWS_TEXTURE_UNIT);
-            fiberShader.setInt("uSelfShadowsTexture", SELF_SHADOWS_TEXTURE_UNIT);
-            fiberShader.setFloat("uSelfShadowRotation", selfShadowRotation);
-        }
-        else
-        {
-            Texture3D::ClearUnit(SELF_SHADOWS_TEXTURE_UNIT);
-            fiberShader.setInt("uSelfShadowsTexture", SELF_SHADOWS_TEXTURE_UNIT);
-        }
+                if (useSelfShadows)
+                {
+                    selfShadowsTexture->Attach(SELF_SHADOWS_TEXTURE_UNIT);
+                    fiberShader.setInt("uSelfShadowsTexture", SELF_SHADOWS_TEXTURE_UNIT);
+                    fiberShader.setFloat("uSelfShadowRotation", selfShadowRotation);
+                }
+                else
+                {
+                    Texture3D::ClearUnit(SELF_SHADOWS_TEXTURE_UNIT);
+                    fiberShader.setInt("uSelfShadowsTexture", SELF_SHADOWS_TEXTURE_UNIT);
+                }
 
-        glDrawElements(GL_PATCHES, fibersIndexBuffer->GetCount(), GL_UNSIGNED_INT, nullptr);
-        
-        // // Render slices of selfShadow to screen
-        // glViewport(0, 0, 512, 512);
-        // slice3DShader.use();
-        // selfShadowsTexture->Attach(0);
-        // slice3DShader.setInt("uInputTexture", 0);
-        // slice3DShader.setFloat("uDepth", std::sin(currentTime) * 0.5 + 0.5);
-        // glBindVertexArray(dummyVAO);
-        // glDrawArrays(GL_TRIANGLES, 0, 3);
-        // glBindVertexArray(0);
+                glDrawElements(GL_PATCHES, fibersIndexBuffer->GetCount(), GL_UNSIGNED_INT, nullptr);
+            }
+            // // Render slices of selfShadow to screen
+            // glViewport(0, 0, 512, 512);
+            // slice3DShader.use();
+            // selfShadowsTexture->Attach(0);
+            // slice3DShader.setInt("uInputTexture", 0);
+            // slice3DShader.setFloat("uDepth", std::sin(currentTime) * 0.5 + 0.5);
+            // glBindVertexArray(dummyVAO);
+            // glDrawArrays(GL_TRIANGLES, 0, 3);
+            // glBindVertexArray(0);
 
             // directional.SetDirection(camera.GetForwardDirection());
 
@@ -367,7 +367,7 @@ int main(int argc, char *argv[])
                 clothVertexArray->Unbind();
                 glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
             }
-
+        }
         // // Blit shadow map to the screen
         // glViewport(0, 0, 512, 512);
         // blitChannelShader.use();
@@ -376,6 +376,9 @@ int main(int argc, char *argv[])
         // glBindVertexArray(dummyVAO);
         // glDrawArrays(GL_TRIANGLES, 0, 3);
         // glBindVertexArray(0);
+
+        {
+            const ProfilingScope scope("UI Rendering");  
 
             ImGui_ImplOpenGL3_NewFrame();
             ImGui_ImplGlfw_NewFrame();
@@ -426,28 +429,30 @@ int main(int argc, char *argv[])
                     indentedLabel("Shadow Mapping:");
                     ImGui::SameLine();
                     ImGui::Checkbox("##UseShadowMapping", &useShadowMapping);
-
-                indentedLabel("Shadow Map Thickess:");
-                ImGui::SameLine();
-                ImGui::DragFloat("##ShadowMapThicknessSlider", &shadowMapThickness, 0.001f, 0.0f, 1.0);
-
-                indentedLabel("Self Shadows:");
-                ImGui::SameLine();
-                ImGui::Checkbox("##UseSelfShadows", &useSelfShadows);
-
-                ImGui::BeginDisabled(!useSelfShadows);
-                indentedLabel("selfShadowRotation:");
-                ImGui::SameLine();
-                ImGui::DragFloat("##selfShadowRotation", &selfShadowRotation, 0.05f, -180.0f, 180.0f);
-                ImGui::EndDisabled();
-
-                indentedLabel("Light Orientation:");
-                ImGui::SameLine();
-                ImGui::DragFloat("##LightOrientation", &lightRotation, 0.5f, -180.0f, 180.0f, "%.1f");
                 
-                indentedLabel("Animated light:");
-                ImGui::SameLine();
-                ImGui::Checkbox("##AnimatedLightCheckBox", &animateLightRotation);
+
+                    indentedLabel("Shadow Map Thickess:");
+                    ImGui::SameLine();
+                    ImGui::DragFloat("##ShadowMapThicknessSlider", &shadowMapThickness, 0.001f, 0.0f, 1.0);
+
+                    indentedLabel("Self Shadows:");
+                    ImGui::SameLine();
+                    ImGui::Checkbox("##UseSelfShadows", &useSelfShadows);
+
+                    ImGui::BeginDisabled(!useSelfShadows);
+                    indentedLabel("selfShadowRotation:");
+                    ImGui::SameLine();
+                    ImGui::DragFloat("##selfShadowRotation", &selfShadowRotation, 0.05f, -180.0f, 180.0f);
+                    ImGui::EndDisabled();
+
+                    indentedLabel("Light Orientation:");
+                    ImGui::SameLine();
+                    ImGui::DragFloat("##LightOrientation", &lightRotation, 0.5f, -180.0f, 180.0f, "%.1f");
+                    
+                    indentedLabel("Animated light:");
+                    ImGui::SameLine();
+                    ImGui::Checkbox("##AnimatedLightCheckBox", &animateLightRotation);
+                }
             }
             ImGui::End();
 
