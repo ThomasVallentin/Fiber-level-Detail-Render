@@ -35,7 +35,7 @@ out GS_OUT
 
     float distanceFromYarnCenter;
 
-    vec3 selfShadowSample;
+    vec2 selfShadowSample;
     float plyRotation;
 } gs_out;
 
@@ -67,13 +67,13 @@ void main()
     vec3 yarnTangentA = gs_in[0].yarnTangent;
     vec3 bitangentToLightA = -normalize(cross(yarnTangentA, toLight));
     vec3 normalToLightA = cross(bitangentToLightA, yarnTangentA);
-    vec3 selfShadowSampleA = transpose(mat3(normalToLightA, bitangentToLightA, yarnTangentA)) * (pntA - yarnCenterA);
+    vec2 selfShadowSampleA = (transpose(mat3(normalToLightA, bitangentToLightA, yarnTangentA)) * (pntA - yarnCenterA)).xy;
 
     vec3 yarnTangentB = gs_in[1].yarnTangent;
     vec3 bitangentToLightB = -normalize(cross(yarnTangentB, toLight));
     vec3 normalToLightB = cross(bitangentToLightB, yarnTangentB);
-    vec3 selfShadowSampleB = transpose(mat3(normalToLightB, bitangentToLightB, yarnTangentB)) * (pntB - yarnCenterB);
-    
+    vec2 selfShadowSampleB = (transpose(mat3(normalToLightB, bitangentToLightB, yarnTangentB)) * (pntB - yarnCenterB)).xy;
+
     float plyRotationA = gs_in[0].plyRotation;
     float plyRotationB = gs_in[1].plyRotation;
 

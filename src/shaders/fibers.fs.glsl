@@ -9,7 +9,7 @@ in GS_OUT
     vec3 position;
     vec3 normal;
     float distanceFromYarnCenter;
-    vec3 selfShadowSample;
+    vec2 selfShadowSample;
     float plyRotation;
 } fs_in;
 
@@ -25,10 +25,15 @@ uniform bool uUseAmbientOcclusion;
 
 // Shadow mapping
 uniform sampler2D uShadowMap;
-uniform float uShadowIntensity = 0.85;
+uniform float uShadowIntensity = 0.7;
 uniform mat4 uViewToLightMatrix;
 uniform bool uReceiveShadows = true;
 uniform bool uSmoothShadows = true;
+
+// Self shadows
+uniform sampler3D uSelfShadowsTexture;
+uniform float uSelfShadowsIntensity = 1.0;
+uniform float uSelfShadowRotation = 0.0;
 
 // == Outputs ==
 
@@ -91,6 +96,14 @@ float sampleShadows(vec4 lightSpacePosition)
     return fragmentDepth > shadowDepth ? uShadowIntensity : 0.0;
 }
 
+float sampleSelfShadows(vec2 selfShadowSample)
+{
+    float scaleFactor = (R_ply + Rmin) * 1.5;
+    float selfShadowDensity = texture3D(uSelfShadowsTexture, vec3((selfShadowSample / scaleFactor) * 0.5 + 0.5, uSelfShadowRotation)).r;
+    return max(0.0, 1.0 - selfShadowDensity);
+}
+
+
 
 void main()
 {
@@ -100,7 +113,7 @@ void main()
     vec3 albedo = sampleAlbedo(vec2(0.0, 0.0));
     float ambientOcclusion = min(1.0, max(sampleAmbientOcclusion(), 0.0) + 0.2);
     float shadowMask = 1.0 - sampleShadows(uViewToLightMatrix * vec4(fs_in.position, 1.0));
-    float selfShadows = min(1.0, (-fs_in.selfShadowSample.x + abs(fs_in.selfShadowSample.y)) * 3.0) + 0.6;
+    float selfShadows = sampleSelfShadows(fs_in.selfShadowSample);
     // vec3 color = vec3(shadowMask);
     vec3 color = selfShadows * shadowMask * ambientOcclusion * albedo;
     // vec3 color = shadowMask * ambientOcclusion * albedo * vec3(max(0.0, dot(viewSpaceNormal, viewSpaceLightDir)));

@@ -19,6 +19,11 @@
 #include <iostream>
 
 
+#define SHADOW_MAP_TEXTURE_UNIT 0
+#define SELF_SHADOWS_TEXTURE_UNIT 1
+
+
+
 // settings
 const unsigned int SCR_WIDTH = 1600;
 const unsigned int SCR_HEIGHT = 1200;
@@ -43,6 +48,7 @@ glm::vec3 initLightDirection = glm::normalize(glm::vec3(0.5f, -0.5f, -0.5f));
 float lightRotation = 0.0f;
 bool animateLightRotation = false;
 
+float selfShadowRotation = 0.0f;
 
 int main(int argc, char *argv[])
 {
@@ -84,7 +90,7 @@ int main(int argc, char *argv[])
     for (const auto& fiber : openFibersCP)
         for (const auto& cPoints : fiber)
             controlPoints.push_back(cPoints);
-        
+
     // Send the data to OpenGL
     uint32_t fibersVertexCount = controlPoints.size();
     auto fibersVertexBuffer = VertexBuffer::Create(controlPoints.data(), 
@@ -149,8 +155,8 @@ int main(int argc, char *argv[])
                        resolver.Resolve("src/shaders/lambert.fs.glsl").c_str());
 
     // Self Shadows
-    // SelfShadowsSettings selfShadowsSettings{512, 16};
-    // std::shared_ptr<Texture3D> selfShadowsTexture = SelfShadows::GenerateTexture(selfShadowsSettings);    
+    SelfShadowsSettings selfShadowsSettings{512, 16};
+    std::shared_ptr<Texture3D> selfShadowsTexture = SelfShadows::GenerateTexture(selfShadowsSettings);    
 
     // Shader slice3DShader(resolver.Resolve("src/shaders/utility/fullScreen.vs.glsl").c_str(),
     //                      resolver.Resolve("src/shaders/utility/3DTextureSlice.fs.glsl").c_str());
@@ -189,7 +195,7 @@ int main(int argc, char *argv[])
                 glDrawElements(GL_PATCHES, fibersIndexBuffer->GetCount(), GL_UNSIGNED_INT, nullptr);
                 glDisable(GL_CULL_FACE);
                 fibersVertexArray->Unbind();
-            }    
+            }
             shadowMap.End();
         }
         else
@@ -226,24 +232,36 @@ int main(int argc, char *argv[])
         if (useShadowMapping)
         {
             fiberShader.setMat4("uViewToLightMatrix", directional.GetProjectionMatrix() * directional.GetViewMatrix() * viewInverseMatrix);
-            shadowMap.GetTexture()->Attach(0);
-            fiberShader.setInt("uShadowMap", 0);
+            shadowMap.GetTexture()->Attach(SHADOW_MAP_TEXTURE_UNIT);
+            fiberShader.setInt("uShadowMap", SHADOW_MAP_TEXTURE_UNIT);
         }
         else 
         {
             fiberShader.setMat4("uViewToLightMatrix", glm::mat4(0.0));
-            Texture2D::ClearUnit(0);
-            fiberShader.setInt("uShadowMap", 0);
+            Texture2D::ClearUnit(SHADOW_MAP_TEXTURE_UNIT);
+            fiberShader.setInt("uShadowMap", SHADOW_MAP_TEXTURE_UNIT);
+        }
+
+        if (true)
+        {
+            selfShadowsTexture->Attach(SELF_SHADOWS_TEXTURE_UNIT);
+            fiberShader.setInt("uSelfShadowsTexture", SELF_SHADOWS_TEXTURE_UNIT);
+            fiberShader.setFloat("uSelfShadowRotation", selfShadowRotation);
+        }
+        else
+        {
+            Texture3D::ClearUnit(SELF_SHADOWS_TEXTURE_UNIT);
+            fiberShader.setInt("uSelfShadowsTexture", SELF_SHADOWS_TEXTURE_UNIT);
         }
 
         glDrawElements(GL_PATCHES, fibersIndexBuffer->GetCount(), GL_UNSIGNED_INT, nullptr);
         
-        // Render slices of selfShadow to screen
+        // // Render slices of selfShadow to screen
+        // glViewport(0, 0, 512, 512);
         // slice3DShader.use();
         // selfShadowsTexture->Attach(0);
         // slice3DShader.setInt("uInputTexture", 0);
         // slice3DShader.setFloat("uDepth", std::sin(currentTime) * 0.5 + 0.5);
-
         // glBindVertexArray(dummyVAO);
         // glDrawArrays(GL_TRIANGLES, 0, 3);
         // glBindVertexArray(0);
@@ -262,6 +280,7 @@ int main(int argc, char *argv[])
         // planeVertexArray->Unbind();
 
         // // Blit shadow map to the screen
+        // glViewport(0, 0, 512, 512);
         // blitChannelShader.use();
         // shadowMap.GetTexture()->Attach(0);
         // blitChannelShader.setInt("uInput", 0);
@@ -296,6 +315,10 @@ int main(int argc, char *argv[])
                 indentedLabel("Shadow Map Thickess:");
                 ImGui::SameLine();
                 ImGui::DragFloat("##ShadowMapThicknessSlider", &shadowMapThickness, 0.001f, 0.0f, 1.0);
+
+                indentedLabel("selfShadowRotation:");
+                ImGui::SameLine();
+                ImGui::DragFloat("##selfShadowRotation", &selfShadowRotation, 0.05f, -180.0f, 180.0f);
 
                 // indentedLabel("Self Shadows:");
                 // ImGui::SameLine();
