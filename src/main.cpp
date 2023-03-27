@@ -32,7 +32,7 @@ Camera camera;
 glm::vec2 mousePos;
 
 const unsigned int SCR_WIDTH = 1600;
-const unsigned int SCR_HEIGHT = 1200;
+const unsigned int SCR_HEIGHT = 900;
 
 // Time
 float deltaTime = 0.0f;
@@ -75,8 +75,9 @@ int main(int argc, char *argv[])
     };
     window.SetEventCallback(eventCallback);  // Define the event callback of the application
 
+    // Initialize profiler
     auto& profiler = Profiler::Init(window);
-    std::vector<ProfilingScopeData> profilingScopes;
+    std::vector<ProfilingScopeData> profilingScopes;  // We will store the events of the previous frame to display them in the UI
 
     // Read curves from the BCC file and send them to OpenGL
     std::vector<std::vector<glm::vec3>> closedFibersCP;
@@ -162,191 +163,189 @@ int main(int argc, char *argv[])
     SelfShadowsSettings selfShadowsSettings{512, 16};
     std::shared_ptr<Texture3D> selfShadowsTexture = SelfShadows::GenerateTexture(selfShadowsSettings);    
 
-    // Shader slice3DShader(resolver.Resolve("src/shaders/utility/fullScreen.vs.glsl").c_str(),
-    //                      resolver.Resolve("src/shaders/utility/3DTextureSlice.fs.glsl").c_str());
-
     glViewport(0, 0, window.GetWidth(), window.GetHeight());
     while (!window.ShouldClose()) 
     {
         float currentTime = static_cast<float>(glfwGetTime());
         deltaTime = currentTime - prevTime;
         prevTime = currentTime;
-        
+
+        // Making a copy of the profiler data to display it in the UI (so that we display the previous frame stats)
+        profilingScopes = profiler.GetScopes();
+        profiler.Clear();
+
         camera.Update();
+
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         {
             // OpenGL Rendering
             const ProfilingScope scope("Render commands");  
 
-        glm::mat4 projMatrix = camera.GetProjectionMatrix();
-        glm::mat4 viewMatrix = camera.GetViewMatrix();
-        glm::mat4 viewInverseMatrix = glm::inverse(camera.GetViewMatrix());
-        glm::mat4 modelMatrix = glm::mat4(1.0f);
+            glm::mat4 projMatrix = camera.GetProjectionMatrix();
+            glm::mat4 viewMatrix = camera.GetViewMatrix();
+            glm::mat4 viewInverseMatrix = glm::inverse(camera.GetViewMatrix());
+            glm::mat4 modelMatrix = glm::mat4(1.0f);
 
-        // Update light position
-        // directional.SetDirection(camera.GetForwardDirection());
-        if (animateLightRotation)
-            lightRotation += deltaTime * 25.0f - (lightRotation > 180.0f) * 360.0f;
-        directional.SetDirection(glm::vec3(glm::rotate(glm::mat4(1.0f), glm::radians(lightRotation), {0.0f, 1.0f, 0.0f}) * glm::vec4(initLightDirection, 1.0f)));
+            // Update light position
+            // directional.SetDirection(camera.GetForwardDirection());
+            if (animateLightRotation)
+                lightRotation += deltaTime * 25.0f - (lightRotation > 180.0f) * 360.0f;
+            directional.SetDirection(glm::vec3(glm::rotate(glm::mat4(1.0f), glm::radians(lightRotation), {0.0f, 1.0f, 0.0f}) * glm::vec4(initLightDirection, 1.0f)));
 
-        // Render the shadow map
-        if (useShadowMapping)
-        {    
-            shadowMap.Begin(directional.GetViewMatrix(), directional.GetProjectionMatrix(), shadowMapThickness);
-            {
-                // Render all the objects that cast shadows here
-                fibersVertexArray->Bind();
-                glEnable(GL_CULL_FACE);
-                glCullFace(GL_BACK);
-                glDrawElements(GL_PATCHES, fibersIndexBuffer->GetCount(), GL_UNSIGNED_INT, nullptr);
-                glDisable(GL_CULL_FACE);
-                fibersVertexArray->Unbind();
+            // Render the shadow map
+            if (useShadowMapping)
+            {    
+                shadowMap.Begin(directional.GetViewMatrix(), directional.GetProjectionMatrix(), shadowMapThickness);
+                {
+                    // Render all the objects that cast shadows here
+                    fibersVertexArray->Bind();
+                    glEnable(GL_CULL_FACE);
+                    glCullFace(GL_BACK);
+                    glDrawElements(GL_PATCHES, fibersIndexBuffer->GetCount(), GL_UNSIGNED_INT, nullptr);
+                    glDisable(GL_CULL_FACE);
+                    fibersVertexArray->Unbind();
+                }
+                shadowMap.End();
             }
-            shadowMap.End();
-        }
-        else
-        {
-            shadowMap.Clear();
-        }
+            else
+            {
+                shadowMap.Clear();
+            }
 
-        fiberShader.use();
-        fiberShader.setMat4("uProjMatrix", projMatrix);
-        fiberShader.setMat4("uViewMatrix", viewMatrix);
-        fiberShader.setMat4("uModelMatrix", modelMatrix);
-    
-        fibersVertexArray->Bind();
-
-        fiberShader.setFloat("R_ply", 0.1f);
-        fiberShader.setFloat("Rmin", 0.1f);
-        fiberShader.setFloat("Rmax", 0.2f);
-        fiberShader.setFloat("theta", 1.0f);
-        fiberShader.setFloat("s", 2.0f);  // length of rotation
-        fiberShader.setFloat("eN", 1.0f); // ellipse scaling factor along Normal
-        fiberShader.setFloat("eB", 1.0f); // ellipse scaling factor along Bitangent
-
-        fiberShader.setFloat("R[0]", 0.20f); // distance from fiber i to ply center
-        fiberShader.setFloat("R[1]", 0.25f); // distance from fiber i to ply center
-        fiberShader.setFloat("R[2]", 0.30f); // distance from fiber i to ply center
-        fiberShader.setFloat("R[3]", 0.35f); // distance from fiber i to ply center
-
-        fiberShader.setInt("uTessLineCount", 64); // distance from fiber i to ply center
-        fiberShader.setInt("uTessSubdivisionCount", 4);
-        fiberShader.setVec3("uLightDirection", glm::vec3(viewMatrix * glm::vec4(directional.GetDirection(), 0.0)));
-
-        // Fragment related uniforms
-        fiberShader.setBool("uUseAmbientOcclusion", useAmbientOcclusion); // distance from fiber i to ply center
-        if (useShadowMapping)
-        {
-            fiberShader.setMat4("uViewToLightMatrix", directional.GetProjectionMatrix() * directional.GetViewMatrix() * viewInverseMatrix);
-            shadowMap.GetTexture()->Attach(SHADOW_MAP_TEXTURE_UNIT);
-            fiberShader.setInt("uShadowMap", SHADOW_MAP_TEXTURE_UNIT);
-        }
-        else 
-        {
-            fiberShader.setMat4("uViewToLightMatrix", glm::mat4(0.0));
-            Texture2D::ClearUnit(SHADOW_MAP_TEXTURE_UNIT);
-            fiberShader.setInt("uShadowMap", SHADOW_MAP_TEXTURE_UNIT);
-        }
-
-        if (useSelfShadows)
-        {
-            selfShadowsTexture->Attach(SELF_SHADOWS_TEXTURE_UNIT);
-            fiberShader.setInt("uSelfShadowsTexture", SELF_SHADOWS_TEXTURE_UNIT);
-            fiberShader.setFloat("uSelfShadowRotation", selfShadowRotation);
-        }
-        else
-        {
-            Texture3D::ClearUnit(SELF_SHADOWS_TEXTURE_UNIT);
-            fiberShader.setInt("uSelfShadowsTexture", SELF_SHADOWS_TEXTURE_UNIT);
-        }
-
-        glDrawElements(GL_PATCHES, fibersIndexBuffer->GetCount(), GL_UNSIGNED_INT, nullptr);
+            fiberShader.use();
+            fiberShader.setMat4("uProjMatrix", projMatrix);
+            fiberShader.setMat4("uViewMatrix", viewMatrix);
+            fiberShader.setMat4("uModelMatrix", modelMatrix);
         
-        // // Render slices of selfShadow to screen
-        // glViewport(0, 0, 512, 512);
-        // slice3DShader.use();
-        // selfShadowsTexture->Attach(0);
-        // slice3DShader.setInt("uInputTexture", 0);
-        // slice3DShader.setFloat("uDepth", std::sin(currentTime) * 0.5 + 0.5);
-        // glBindVertexArray(dummyVAO);
-        // glDrawArrays(GL_TRIANGLES, 0, 3);
-        // glBindVertexArray(0);
+            fibersVertexArray->Bind();
 
-        // // Render plane
-        // planeShader.use();
-        // planeShader.setMat4("uModelMatrix", glm::mat4(1.0f));
-        // planeShader.setMat4("uViewMatrix", camera.GetViewMatrix());
-        // planeShader.setMat4("uProjMatrix", camera.GetProjectionMatrix());
-        // planeShader.setMat4("uLightSpaceMatrix", directional.GetProjectionMatrix() * directional.GetViewMatrix());
-        // shadowMap.GetTexture()->Attach(0);
-        // planeShader.setInt("uShadowMap", 0);
+            fiberShader.setFloat("R_ply", 0.1f);
+            fiberShader.setFloat("Rmin", 0.1f);
+            fiberShader.setFloat("Rmax", 0.2f);
+            fiberShader.setFloat("theta", 1.0f);
+            fiberShader.setFloat("s", 2.0f);  // length of rotation
+            fiberShader.setFloat("eN", 1.0f); // ellipse scaling factor along Normal
+            fiberShader.setFloat("eB", 1.0f); // ellipse scaling factor along Bitangent
 
-        // planeVertexArray->Bind();
-        // glDrawElements(GL_TRIANGLES, planeIndexBuffer->GetCount(), GL_UNSIGNED_INT, nullptr);
-        // planeVertexArray->Unbind();
+            fiberShader.setFloat("R[0]", 0.20f); // distance from fiber i to ply center
+            fiberShader.setFloat("R[1]", 0.25f); // distance from fiber i to ply center
+            fiberShader.setFloat("R[2]", 0.30f); // distance from fiber i to ply center
+            fiberShader.setFloat("R[3]", 0.35f); // distance from fiber i to ply center
 
-        // // Blit shadow map to the screen
-        // glViewport(0, 0, 512, 512);
-        // blitChannelShader.use();
-        // shadowMap.GetTexture()->Attach(0);
-        // blitChannelShader.setInt("uInput", 0);
-        // glBindVertexArray(dummyVAO);
-        // glDrawArrays(GL_TRIANGLES, 0, 3);
-        // glBindVertexArray(0);
+            fiberShader.setInt("uTessLineCount", 64); // distance from fiber i to ply center
+            fiberShader.setInt("uTessSubdivisionCount", 4);
+            fiberShader.setVec3("uLightDirection", glm::vec3(viewMatrix * glm::vec4(directional.GetDirection(), 0.0)));
+
+            // Fragment related uniforms
+            fiberShader.setBool("uUseAmbientOcclusion", useAmbientOcclusion); // distance from fiber i to ply center
+            if (useShadowMapping)
+            {
+                fiberShader.setMat4("uViewToLightMatrix", directional.GetProjectionMatrix() * directional.GetViewMatrix() * viewInverseMatrix);
+                shadowMap.GetTexture()->Attach(SHADOW_MAP_TEXTURE_UNIT);
+                fiberShader.setInt("uShadowMap", SHADOW_MAP_TEXTURE_UNIT);
+            }
+            else 
+            {
+                fiberShader.setMat4("uViewToLightMatrix", glm::mat4(0.0));
+                Texture2D::ClearUnit(SHADOW_MAP_TEXTURE_UNIT);
+                fiberShader.setInt("uShadowMap", SHADOW_MAP_TEXTURE_UNIT);
+            }
+
+            if (useSelfShadows)
+            {
+                selfShadowsTexture->Attach(SELF_SHADOWS_TEXTURE_UNIT);
+                fiberShader.setInt("uSelfShadowsTexture", SELF_SHADOWS_TEXTURE_UNIT);
+                fiberShader.setFloat("uSelfShadowRotation", selfShadowRotation);
+            }
+            else
+            {
+                Texture3D::ClearUnit(SELF_SHADOWS_TEXTURE_UNIT);
+                fiberShader.setInt("uSelfShadowsTexture", SELF_SHADOWS_TEXTURE_UNIT);
+            }
+
+            glDrawElements(GL_PATCHES, fibersIndexBuffer->GetCount(), GL_UNSIGNED_INT, nullptr);
+        }
+
+        {
+            const ProfilingScope scope("UI Rendering");
 
             ImGui_ImplOpenGL3_NewFrame();
             ImGui_ImplGlfw_NewFrame();
             ImGui::NewFrame();
 
-        auto& io = ImGui::GetIO();
-        ImGui::Begin("Control panel", nullptr);
-        {
-            if (ImGui::CollapsingHeader("Stats", ImGuiTreeNodeFlags_DefaultOpen))
+            auto& io = ImGui::GetIO();
+            ImGui::Begin("Control panel", nullptr);
             {
-                indentedLabel("FPS:");
-                ImGui::SameLine();
-                ImGui::Text("%.1f (%.3fms)", io.Framerate, 1000.0f / io.Framerate);
+                if (ImGui::CollapsingHeader("Profiling", ImGuiTreeNodeFlags_DefaultOpen))
+                {
+                    indentedLabel("FPS :");
+                    ImGui::SameLine();
+                    ImGui::Text("%.1f (%.3fms)", io.Framerate, 1000.0f / io.Framerate);
+
+                    for (const auto& scope : profilingScopes)
+                    {
+                        float elapsedTime = scope.duration * 1000.0;
+                        indentedLabel((scope.name + " :").c_str());
+                        ImGui::SameLine();
+                        ImGui::BeginDisabled();
+                        ImGui::PushItemWidth(100.0f);
+                        ImGui::DragFloat((std::string("##") + scope.name + "TimeDrag").c_str(), &elapsedTime, 1.0f, 0.0f, 0.0f, "%.3fms");
+                        ImGui::EndDisabled();
+                    }
+
+                    ImGui::Spacing();
+                }
+
+                if (ImGui::CollapsingHeader("Render settings", ImGuiTreeNodeFlags_DefaultOpen))
+                {
+                    indentedLabel("Ambient occlusion:");
+                    ImGui::SameLine();
+                    ImGui::Checkbox("##UseAmbientOcclusion", &useAmbientOcclusion);
+
+                    indentedLabel("Self Shadows:");
+                    ImGui::SameLine();
+                    ImGui::Checkbox("##UseSelfShadows", &useSelfShadows);
+
+                    indentedLabel("Shadow Mapping:");
+                    ImGui::SameLine();
+                    ImGui::Checkbox("##UseShadowMapping", &useShadowMapping);
+
+                    ImGui::BeginDisabled(!useShadowMapping);
+                    indentedLabel("Shadow Map Thickess:");
+                    ImGui::SameLine();
+                    ImGui::DragFloat("##ShadowMapThicknessSlider", &shadowMapThickness, 0.001f, 0.0f, 1.0);
+                    ImGui::EndDisabled();
+                }
+
+                if (ImGui::CollapsingHeader("Lighting", ImGuiTreeNodeFlags_DefaultOpen))
+                {
+                    indentedLabel("Light Orientation:");
+                    ImGui::SameLine();
+                    if (ImGui::DragFloat("##LightOrientation", &lightRotation, 0.5f, -180.1f, 180.1f, "%.1f"))
+                    {
+                        if (lightRotation < -180.0f) lightRotation += 360.0f;
+                        else if (lightRotation > 180.0f)  lightRotation -= 360.0f;
+                    }
+                    
+                    indentedLabel("Animated light:");
+                    ImGui::SameLine();
+                    ImGui::Checkbox("##AnimatedLightCheckBox", &animateLightRotation);
+                }
+                ImGui::End();
             }
-            if (ImGui::CollapsingHeader("Controls", ImGuiTreeNodeFlags_DefaultOpen))
-            {
-                indentedLabel("Ambient occlusion:");
-                ImGui::SameLine();
-                ImGui::Checkbox("##UseAmbientOcclusion", &useAmbientOcclusion);
-
-                indentedLabel("Shadow Mapping:");
-                ImGui::SameLine();
-                ImGui::Checkbox("##UseShadowMapping", &useShadowMapping);
-
-                indentedLabel("Shadow Map Thickess:");
-                ImGui::SameLine();
-                ImGui::DragFloat("##ShadowMapThicknessSlider", &shadowMapThickness, 0.001f, 0.0f, 1.0);
-
-                indentedLabel("Self Shadows:");
-                ImGui::SameLine();
-                ImGui::Checkbox("##UseSelfShadows", &useSelfShadows);
-
-                ImGui::BeginDisabled(!useSelfShadows);
-                indentedLabel("selfShadowRotation:");
-                ImGui::SameLine();
-                ImGui::DragFloat("##selfShadowRotation", &selfShadowRotation, 0.05f, -180.0f, 180.0f);
-                ImGui::EndDisabled();
-
-                indentedLabel("Light Orientation:");
-                ImGui::SameLine();
-                ImGui::DragFloat("##LightOrientation", &lightRotation, 0.5f, -180.0f, 180.0f, "%.1f");
-                
-                indentedLabel("Animated light:");
-                ImGui::SameLine();
-                ImGui::Checkbox("##AnimatedLightCheckBox", &animateLightRotation);
-            }
-            ImGui::End();
-
-        // Render ImGui items
-        ImGui::Render();
-        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         
-        window.Update();
+            // Render ImGui items
+            ImGui::Render();
+            ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+        }
+        
+        {
+            // It's the SwapBuffers that actually compute the rendering, not the calls to glXXX commands
+            // recording its computation time
+            const ProfilingScope scope("OpenGL Rendering");  
+            window.Update();
+        }
     }
 
     return 0;
