@@ -417,10 +417,6 @@ int main(int argc, char *argv[])
                     ImGui::SameLine();
                     ImGui::Checkbox("##ShowFibersCB", &showFibers);
 
-                    indentedLabel("Show cloth mesh :");
-                    ImGui::SameLine();
-                    ImGui::Checkbox("##ShowClothMeshCB", &showClothMesh);
-
                     indentedLabel("Show floor :");
                     ImGui::SameLine();
                     ImGui::Checkbox("##ShowFloorCB", &showFloor);
@@ -460,12 +456,16 @@ int main(int argc, char *argv[])
                 {
                     indentedLabel("Enable simulation:");
                     ImGui::SameLine();
-                    ImGui::Checkbox("##EnableSimulation", &enableSimulation);
+                    ImGui::Checkbox("##EnableSimulationCB", &enableSimulation);
+
+                    indentedLabel("Show simulation mesh :");
+                    ImGui::SameLine();
+                    ImGui::Checkbox("##ShowSimulationMeshCB", &showClothMesh);
 
                     indentedLabel("Smoothing iterations:");
                     ImGui::SameLine();
                     int iterations = wrap.GetSmoothIterations();
-                    if (ImGui::DragInt("##SmoothIteration", &iterations, 0.1f, 0, 10, "%d steps"))
+                    if (ImGui::DragInt("##SmoothIterationDrag", &iterations, 0.1f, 0, 10, "%d steps"))
                         wrap.SetSmoothIterations(iterations);
                 }
 
