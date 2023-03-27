@@ -40,6 +40,8 @@ void WrapDeformer::Initialize(const std::vector<glm::vec3>& points,
         glm::vec3 projectedPoint = ProjectPointOnPlane(point, normal, p1);
         glm::vec3 barycentric = CartesianToBarycentric(projectedPoint, p1, p2, p3);
         float normalOffset = glm::distance(point, projectedPoint);
+        if (glm::dot(normal, point - projectedPoint) < 0.0)
+            normalOffset *= -1;
 
         m_bindings.push_back(triangleIndex);
         m_coordinates.push_back({barycentric.x, barycentric.y, barycentric.z, normalOffset});
