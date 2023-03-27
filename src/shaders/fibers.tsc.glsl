@@ -9,7 +9,7 @@ layout (vertices=2) out;
 // == Uniform ==
 
 uniform int uTessLineCount = 64;
-uniform int uTessSubdivisionCount = 16;
+uniform int uTessSubdivisionCount = 8;
 
 // == Outputs ==
 

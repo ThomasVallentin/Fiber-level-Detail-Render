@@ -53,6 +53,7 @@ std::shared_ptr<Texture3D> SelfShadows::GenerateTexture(const SelfShadowsSetting
         s_densityShader->setInt("uPlyCount", settings.plyCount);
         s_densityShader->setFloat("uPlyAngle", plyAngleStep * (float)i);
         s_densityShader->setFloat("uPlyRadius", settings.plyRadius);
+        s_densityShader->setFloat("uFiberRadius", settings.fiberRadius);
         s_densityShader->setFloat("uDensityE", settings.densityE);
         s_densityShader->setFloat("uDensityB", settings.densityB);
         s_densityShader->setFloat("uEN", settings.eN);
@@ -66,6 +67,9 @@ std::shared_ptr<Texture3D> SelfShadows::GenerateTexture(const SelfShadowsSetting
         s_absorptionShader->use();
         s_densityFramebuffer->GetColorAttachment(0)->Bind();
         s_absorptionShader->setInt("uDensityTexture", 0);
+
+        s_absorptionShader->setFloat("uPlyRadius", settings.plyRadius);
+        s_absorptionShader->setFloat("uFiberRadius", settings.fiberRadius);
 
         s_absorptionFramebuffer->Bind();
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
