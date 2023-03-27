@@ -1,15 +1,27 @@
-#include "Base/Camera.h"
+#include "SelfShadows.h"
+#include "ShadowMap.h"
+
 #include "Base/Window.h"
 #include "Base/Event.h"
 #include "Base/Resolver.h"
 #include "Base/Profiler.h"
+#include "Base/Shader.h"
+#include "Base/Framebuffer.h"
+#include "Base/VertexArray.h"
+#include "Base/Camera.h"
+#include "Base/bccReader.h"
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
+#include <glm/gtx/string_cast.hpp>
 
 #include <imgui.h>
 
 #include <iostream>
+
+
+#define SHADOW_MAP_TEXTURE_UNIT 0
+#define SELF_SHADOWS_TEXTURE_UNIT 1
 
 
 // Camera controls :
@@ -19,6 +31,25 @@
 Camera camera;
 glm::vec2 mousePos;
 
+const unsigned int SCR_WIDTH = 1600;
+const unsigned int SCR_HEIGHT = 1200;
+
+// Time
+float deltaTime = 0.0f;
+float prevTime = 0.0f;
+
+// Rendering parameters
+bool useAmbientOcclusion = true;
+bool useShadowMapping = true;
+bool useSelfShadows = true;
+
+glm::vec3 initLightDirection = glm::normalize(glm::vec3(0.5f, -0.5f, -0.5f));
+float lightRotation = 0.0f;
+bool animateLightRotation = false;
+
+float shadowMapThickness = 0.15f;
+float selfShadowRotation = 0.0f;
+
 
 int main(int argc, char *argv[])
 {
@@ -26,94 +57,296 @@ int main(int argc, char *argv[])
                                     .parent_path()
                                     .parent_path());
 
-    auto window = Window({1280, 720, "Fiber Level Detail Render"});
+    auto window = Window({SCR_WIDTH, SCR_HEIGHT, "Fiber Level Detail Render"});
+
+    // Define the event callback of the application
     auto eventCallback = [&](Event* event) {
         switch (event->GetType()) 
         {
             case EventType::WindowResized: {
                 auto resizeEvent = dynamic_cast<WindowResizedEvent*>(event);
-                glViewport(0, 0, 
-                           resizeEvent->GetWidth(), 
-                           resizeEvent->GetHeight());
-                break;
-            }
-            case EventType::MouseMoved: {
-                auto mouseEvent = dynamic_cast<MouseMovedEvent*>(event);
-                mousePos.x = mouseEvent->GetPosX();
-                mousePos.y = mouseEvent->GetPosY();
+                glViewport(0, 0, resizeEvent->GetWidth(), resizeEvent->GetHeight());
+                camera.SetViewportSize(resizeEvent->GetWidth(), resizeEvent->GetHeight());
                 break;
             }
         }
 
-        // 
         camera.OnEvent(event);
     };
     window.SetEventCallback(eventCallback);  // Define the event callback of the application
 
     auto& profiler = Profiler::Init(window);
     std::vector<ProfilingScopeData> profilingScopes;
-    while (!window.ShouldClose()) {
-        // Making a copy of the profiler data to display it in the UI (so that we display the previous frame stats)
-        profilingScopes = profiler.GetScopes();
-        profiler.Clear();
 
+    // Read curves from the BCC file and send them to OpenGL
+    std::vector<std::vector<glm::vec3>> closedFibersCP;
+    std::vector<std::vector<glm::vec3>> openFibersCP;
+    readBCC(resolver.Resolve("resources/fiber.bcc"), closedFibersCP, openFibersCP);
+
+    // Merge all the curves into a single vector to draw all of them in a single drawcall
+    std::vector<glm::vec3> controlPoints;
+    for (const auto& fiber : closedFibersCP)
+    {
+        for (const auto& cPoints : fiber)
+            controlPoints.push_back(cPoints);
+        controlPoints.push_back(fiber.front());
+    }
+    for (const auto& fiber : openFibersCP)
+        for (const auto& cPoints : fiber)
+            controlPoints.push_back(cPoints);
+
+    // Send the data to OpenGL
+    uint32_t fibersVertexCount = controlPoints.size();
+    auto fibersVertexBuffer = VertexBuffer::Create(controlPoints.data(), 
+                                                   fibersVertexCount * sizeof(glm::vec3));
+    fibersVertexBuffer->SetLayout({{"Position",  3, GL_FLOAT, false}});
+
+    std::vector<uint32_t> indices;
+    for (size_t i = 0 ; i < fibersVertexCount - 3 ; i++)
+    {
+        indices.push_back(i);
+        indices.push_back(i+1);
+        indices.push_back(i+2);
+        indices.push_back(i+3);
+    }
+    auto fibersIndexBuffer = IndexBuffer::Create(indices.data(), 
+                                                 indices.size());
+
+    auto fibersVertexArray = VertexArray::Create();
+    fibersVertexArray->Bind();
+    fibersVertexArray->AddVertexBuffer(fibersVertexBuffer);
+    fibersVertexArray->SetIndexBuffer(fibersIndexBuffer);
+    fibersVertexArray->Unbind();
+    
+    glPatchParameteri(GL_PATCH_VERTICES, 4);
+
+    Shader fiberShader(resolver.Resolve("src/shaders/fibers.vs.glsl").c_str(), 
+                       resolver.Resolve("src/shaders/fibers.fs.glsl").c_str(),
+                       resolver.Resolve("src/shaders/fibers.gs.glsl").c_str(),
+                       resolver.Resolve("src/shaders/fibers.tsc.glsl").c_str(),
+                       resolver.Resolve("src/shaders/fibers.tse.glsl").c_str());
+
+    GLuint dummyVAO;
+    glGenVertexArrays(1, &dummyVAO);
+    glBindVertexArray(dummyVAO);
+
+    // Shadow mapping
+    DirectionalLight directional(initLightDirection, {0.8f, 0.8f, 0.8f});
+    ShadowMap shadowMap(4096);
+    
+    Shader blitChannelShader(resolver.Resolve("src/shaders/utility/fullScreen.vs.glsl").c_str(), 
+                             resolver.Resolve("src/shaders/utility/blitTextureChannel.fs.glsl").c_str());
+
+    // Simple plane to visualize the casted shadows
+    std::vector<Vertex> planeVertices = {{{-10.0, 0.0, -10.0}, {0.0, 1.0, 0.0}, {0.0, 0.0}},
+                                         {{-10.0, 0.0,  10.0}, {0.0, 1.0, 0.0}, {0.0, 1.0}},
+                                         {{ 10.0, 0.0,  10.0}, {0.0, 1.0, 0.0}, {1.0, 1.0}},
+                                         {{ 10.0, 0.0, -10.0}, {0.0, 1.0, 0.0}, {1.0, 0.0}}};
+    std::vector<uint32_t> planeIndices = {0, 1, 2, 2, 3, 0};
+    auto planeVertexBuffer = VertexBuffer::Create(planeVertices.data(), 
+                                                  planeVertices.size() * sizeof(Vertex));
+    planeVertexBuffer->SetLayout({{"Position",  3, GL_FLOAT, false},
+                                  {"Normal",    3, GL_FLOAT, false},
+                                  {"TexCoord",  2, GL_FLOAT, false}});
+    auto planeIndexBuffer = IndexBuffer::Create(planeIndices.data(), planeIndices.size()); 
+    auto planeVertexArray = VertexArray::Create();
+    planeVertexArray->Bind();
+    planeVertexArray->AddVertexBuffer(planeVertexBuffer);
+    planeVertexArray->SetIndexBuffer(planeIndexBuffer);
+    planeVertexArray->Unbind();
+
+    Shader planeShader(resolver.Resolve("src/shaders/default3D.vs.glsl").c_str(), 
+                       resolver.Resolve("src/shaders/lambert.fs.glsl").c_str());
+
+    // Self Shadows
+    SelfShadowsSettings selfShadowsSettings{512, 16};
+    std::shared_ptr<Texture3D> selfShadowsTexture = SelfShadows::GenerateTexture(selfShadowsSettings);    
+
+    // Shader slice3DShader(resolver.Resolve("src/shaders/utility/fullScreen.vs.glsl").c_str(),
+    //                      resolver.Resolve("src/shaders/utility/3DTextureSlice.fs.glsl").c_str());
+
+    glViewport(0, 0, window.GetWidth(), window.GetHeight());
+    while (!window.ShouldClose()) 
+    {
+        float currentTime = static_cast<float>(glfwGetTime());
+        deltaTime = currentTime - prevTime;
+        prevTime = currentTime;
+        
         camera.Update();
-
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         {
             // OpenGL Rendering
             const ProfilingScope scope("Render commands");  
 
-            // (づ｡◕‿‿◕｡)づ    Write OpenGL code here    ~(˘▾˘~)
-            // shader.use();
-            // shader.setMat4("uModelMatrix", glm::mat4(1.0f));
-            // shader.setMat4("uViewMatrix",  camera.GetViewMatrix());
-            // shader.setMat4("uProjMatrix",  camera.GetProjectionMatrix());
-            // glDrawXXXX(...);
+        glm::mat4 projMatrix = camera.GetProjectionMatrix();
+        glm::mat4 viewMatrix = camera.GetViewMatrix();
+        glm::mat4 viewInverseMatrix = glm::inverse(camera.GetViewMatrix());
+        glm::mat4 modelMatrix = glm::mat4(1.0f);
+
+        // Update light position
+        // directional.SetDirection(camera.GetForwardDirection());
+        if (animateLightRotation)
+            lightRotation += deltaTime * 25.0f - (lightRotation > 180.0f) * 360.0f;
+        directional.SetDirection(glm::vec3(glm::rotate(glm::mat4(1.0f), glm::radians(lightRotation), {0.0f, 1.0f, 0.0f}) * glm::vec4(initLightDirection, 1.0f)));
+
+        // Render the shadow map
+        if (useShadowMapping)
+        {    
+            shadowMap.Begin(directional.GetViewMatrix(), directional.GetProjectionMatrix(), shadowMapThickness);
+            {
+                // Render all the objects that cast shadows here
+                fibersVertexArray->Bind();
+                glEnable(GL_CULL_FACE);
+                glCullFace(GL_BACK);
+                glDrawElements(GL_PATCHES, fibersIndexBuffer->GetCount(), GL_UNSIGNED_INT, nullptr);
+                glDisable(GL_CULL_FACE);
+                fibersVertexArray->Unbind();
+            }
+            shadowMap.End();
+        }
+        else
+        {
+            shadowMap.Clear();
         }
 
+        fiberShader.use();
+        fiberShader.setMat4("uProjMatrix", projMatrix);
+        fiberShader.setMat4("uViewMatrix", viewMatrix);
+        fiberShader.setMat4("uModelMatrix", modelMatrix);
+    
+        fibersVertexArray->Bind();
+
+        fiberShader.setFloat("R_ply", 0.1f);
+        fiberShader.setFloat("Rmin", 0.1f);
+        fiberShader.setFloat("Rmax", 0.2f);
+        fiberShader.setFloat("theta", 1.0f);
+        fiberShader.setFloat("s", 2.0f);  // length of rotation
+        fiberShader.setFloat("eN", 1.0f); // ellipse scaling factor along Normal
+        fiberShader.setFloat("eB", 1.0f); // ellipse scaling factor along Bitangent
+
+        fiberShader.setFloat("R[0]", 0.20f); // distance from fiber i to ply center
+        fiberShader.setFloat("R[1]", 0.25f); // distance from fiber i to ply center
+        fiberShader.setFloat("R[2]", 0.30f); // distance from fiber i to ply center
+        fiberShader.setFloat("R[3]", 0.35f); // distance from fiber i to ply center
+
+        fiberShader.setInt("uTessLineCount", 64); // distance from fiber i to ply center
+        fiberShader.setInt("uTessSubdivisionCount", 4);
+        fiberShader.setVec3("uLightDirection", glm::vec3(viewMatrix * glm::vec4(directional.GetDirection(), 0.0)));
+
+        // Fragment related uniforms
+        fiberShader.setBool("uUseAmbientOcclusion", useAmbientOcclusion); // distance from fiber i to ply center
+        if (useShadowMapping)
         {
-            // Render ImGui items
-            const ProfilingScope scope("UI Rendering");  
+            fiberShader.setMat4("uViewToLightMatrix", directional.GetProjectionMatrix() * directional.GetViewMatrix() * viewInverseMatrix);
+            shadowMap.GetTexture()->Attach(SHADOW_MAP_TEXTURE_UNIT);
+            fiberShader.setInt("uShadowMap", SHADOW_MAP_TEXTURE_UNIT);
+        }
+        else 
+        {
+            fiberShader.setMat4("uViewToLightMatrix", glm::mat4(0.0));
+            Texture2D::ClearUnit(SHADOW_MAP_TEXTURE_UNIT);
+            fiberShader.setInt("uShadowMap", SHADOW_MAP_TEXTURE_UNIT);
+        }
+
+        if (useSelfShadows)
+        {
+            selfShadowsTexture->Attach(SELF_SHADOWS_TEXTURE_UNIT);
+            fiberShader.setInt("uSelfShadowsTexture", SELF_SHADOWS_TEXTURE_UNIT);
+            fiberShader.setFloat("uSelfShadowRotation", selfShadowRotation);
+        }
+        else
+        {
+            Texture3D::ClearUnit(SELF_SHADOWS_TEXTURE_UNIT);
+            fiberShader.setInt("uSelfShadowsTexture", SELF_SHADOWS_TEXTURE_UNIT);
+        }
+
+        glDrawElements(GL_PATCHES, fibersIndexBuffer->GetCount(), GL_UNSIGNED_INT, nullptr);
+        
+        // // Render slices of selfShadow to screen
+        // glViewport(0, 0, 512, 512);
+        // slice3DShader.use();
+        // selfShadowsTexture->Attach(0);
+        // slice3DShader.setInt("uInputTexture", 0);
+        // slice3DShader.setFloat("uDepth", std::sin(currentTime) * 0.5 + 0.5);
+        // glBindVertexArray(dummyVAO);
+        // glDrawArrays(GL_TRIANGLES, 0, 3);
+        // glBindVertexArray(0);
+
+        // // Render plane
+        // planeShader.use();
+        // planeShader.setMat4("uModelMatrix", glm::mat4(1.0f));
+        // planeShader.setMat4("uViewMatrix", camera.GetViewMatrix());
+        // planeShader.setMat4("uProjMatrix", camera.GetProjectionMatrix());
+        // planeShader.setMat4("uLightSpaceMatrix", directional.GetProjectionMatrix() * directional.GetViewMatrix());
+        // shadowMap.GetTexture()->Attach(0);
+        // planeShader.setInt("uShadowMap", 0);
+
+        // planeVertexArray->Bind();
+        // glDrawElements(GL_TRIANGLES, planeIndexBuffer->GetCount(), GL_UNSIGNED_INT, nullptr);
+        // planeVertexArray->Unbind();
+
+        // // Blit shadow map to the screen
+        // glViewport(0, 0, 512, 512);
+        // blitChannelShader.use();
+        // shadowMap.GetTexture()->Attach(0);
+        // blitChannelShader.setInt("uInput", 0);
+        // glBindVertexArray(dummyVAO);
+        // glDrawArrays(GL_TRIANGLES, 0, 3);
+        // glBindVertexArray(0);
 
             ImGui_ImplOpenGL3_NewFrame();
             ImGui_ImplGlfw_NewFrame();
             ImGui::NewFrame();
 
-            auto& io = ImGui::GetIO();
-            ImGui::Begin("Control panel", nullptr);
+        auto& io = ImGui::GetIO();
+        ImGui::Begin("Control panel", nullptr);
+        {
+            if (ImGui::CollapsingHeader("Stats", ImGuiTreeNodeFlags_DefaultOpen))
             {
-                if (ImGui::CollapsingHeader("Stats", ImGuiTreeNodeFlags_DefaultOpen))
-                {
-                    indentedLabel("FPS:");
-                    ImGui::SameLine();
-                    ImGui::Text("%.1f (%.3fms)", io.Framerate, 1000.0f / io.Framerate);
+                indentedLabel("FPS:");
+                ImGui::SameLine();
+                ImGui::Text("%.1f (%.3fms)", io.Framerate, 1000.0f / io.Framerate);
+            }
+            if (ImGui::CollapsingHeader("Controls", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                indentedLabel("Ambient occlusion:");
+                ImGui::SameLine();
+                ImGui::Checkbox("##UseAmbientOcclusion", &useAmbientOcclusion);
+
+                indentedLabel("Shadow Mapping:");
+                ImGui::SameLine();
+                ImGui::Checkbox("##UseShadowMapping", &useShadowMapping);
+
+                indentedLabel("Shadow Map Thickess:");
+                ImGui::SameLine();
+                ImGui::DragFloat("##ShadowMapThicknessSlider", &shadowMapThickness, 0.001f, 0.0f, 1.0);
+
+                indentedLabel("Self Shadows:");
+                ImGui::SameLine();
+                ImGui::Checkbox("##UseSelfShadows", &useSelfShadows);
+
+                ImGui::BeginDisabled(!useSelfShadows);
+                indentedLabel("selfShadowRotation:");
+                ImGui::SameLine();
+                ImGui::DragFloat("##selfShadowRotation", &selfShadowRotation, 0.05f, -180.0f, 180.0f);
+                ImGui::EndDisabled();
+
+                indentedLabel("Light Orientation:");
+                ImGui::SameLine();
+                ImGui::DragFloat("##LightOrientation", &lightRotation, 0.5f, -180.0f, 180.0f, "%.1f");
                 
-                    ImGui::Text("Profiling:");
-                    for (const auto& scope : profilingScopes)
-                    {
-                        float elapsedTime = scope.duration * 1000.0;
-                        indentedLabel((scope.name + " :").c_str());
-                        ImGui::SameLine();
-                        ImGui::BeginDisabled();
-                        ImGui::PushItemWidth(100.0f);
-                        ImGui::DragFloat((std::string("##") + scope.name + "TimeDrag").c_str(), &elapsedTime, 1.0f, 0.0f, 0.0f, "%.3fms");
-                        ImGui::EndDisabled();
-                    }
-                }
+                indentedLabel("Animated light:");
+                ImGui::SameLine();
+                ImGui::Checkbox("##AnimatedLightCheckBox", &animateLightRotation);
             }
             ImGui::End();
 
-            ImGui::Render();
-            ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-        }
-
-        {
-            // It's the SwapBuffers that actually compute the rendering, not the calls to glXXX commands
-            const ProfilingScope scope("OpenGL Rendering");  
-            window.Update();
-        }
+        // Render ImGui items
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+        
+        window.Update();
     }
 
     return 0;
