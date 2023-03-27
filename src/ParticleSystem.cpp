@@ -158,22 +158,25 @@ void InitClothFromMesh(ParticleSystem& partSys,
                        const uint32_t& divisionsW, 
                        const uint32_t& divisionsH,
                        const float& fe) {
-    float k = 0.1f;
-    float z = 0.003f;
+    float k = 0.2f;
+    float z = 0.03f;
 
     partSys.links.clear();
     partSys.particles.clear();
 
     uint32_t vtxCountW = divisionsW + 1;
     uint32_t vtxCountH = divisionsH + 1;
-    for (int y = 0 ; y < vtxCountH ; y++) {
-        partSys.particles.push_back(FixedPoint(vertices[y * (vtxCountW)].position));
-        for (int x=1 ; x < vtxCountW ; ++x) {
+    for (int y = 0; y < vtxCountH - 1 ; y++) {
+        for (int x=0 ; x < vtxCountW ; ++x) {
             auto part = Particle{vertices[y * (vtxCountW) + x].position};
             part.mass = 1.0f;
             part.update = leapFrog;
             partSys.particles.push_back(part);
         }
+    }
+    // Top line is only composed of fixed points
+    for (int x=0 ; x < vtxCountW ; ++x) {
+        partSys.particles.push_back(FixedPoint(vertices[(vtxCountH - 1) * vtxCountW + x].position));
     }
 
     auto addLink = [&](const uint32_t& i1, const uint32_t& i2) {

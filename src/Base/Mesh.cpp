@@ -24,7 +24,8 @@ void BuildPlane(const float& width,
         for (int j = 0 ; j < (divisionsW + 1) ; ++j)
         {
             vertices.push_back({{(float)j / divisionsW * width - halfWidth, 
-                                (float)i / divisionsH * height - halfHeight, 0.0f}, 
+                                 (float)i / divisionsH * height - halfHeight, 
+                                 0.0f}, 
                                {0.0, 0.0, 1.0}, 
                                {(float)j / divisionsW, 
                                 (float)i / divisionsH}});
