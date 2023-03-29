@@ -158,7 +158,7 @@ void InitClothFromMesh(SimulationEngine& engine,
                        const uint32_t& divisionsW, 
                        const uint32_t& divisionsH,
                        const float& fe) {
-    float k = 0.2f;
+    float k = 0.1f;
     float z = 0.03f;
 
     engine.links.clear();
