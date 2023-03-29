@@ -62,6 +62,7 @@ float selfShadowRotation = 0.0f;
 glm::vec3 initLightDirection = glm::normalize(glm::vec3(0.5f, -0.5f, -0.5f));
 float lightRotation = 0.0f;
 bool animateLightRotation = false;
+glm::vec3 backgroundColor = {0.2f, 0.3f, 0.3f};
 
 bool enableSimulation = false;
 
@@ -222,7 +223,7 @@ int main(int argc, char *argv[])
             }
         }  
 
-        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+        glClearColor(backgroundColor.r, backgroundColor.g, backgroundColor.b, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         
         {
@@ -340,8 +341,11 @@ int main(int argc, char *argv[])
             ImGui::NewFrame();
 
             auto& io = ImGui::GetIO();
+
             ImGui::Begin("Control panel", nullptr);
             {
+                ImGui::PushItemWidth(100.0f);
+
                 if (ImGui::CollapsingHeader("Profiling", ImGuiTreeNodeFlags_DefaultOpen))
                 {
                     indentedLabel("FPS :");
@@ -354,7 +358,6 @@ int main(int argc, char *argv[])
                         indentedLabel((scope.name + " :").c_str());
                         ImGui::SameLine();
                         ImGui::BeginDisabled();
-                        ImGui::PushItemWidth(100.0f);
                         ImGui::DragFloat((std::string("##") + scope.name + "TimeDrag").c_str(), &elapsedTime, 1.0f, 0.0f, 0.0f, "%.3fms");
                         ImGui::EndDisabled();
                     }
@@ -385,6 +388,14 @@ int main(int argc, char *argv[])
                     ImGui::SameLine();
                     ImGui::DragFloat("##ShadowMapThicknessSlider", &shadowMapThickness, 0.001f, 0.0f, 1.0);
                     ImGui::EndDisabled();
+
+                    indentedLabel("Background Color:");
+                    ImGui::SameLine();
+                    ImGui::PushItemWidth(ImGui::GetWindowContentRegionWidth() - ImGui::GetCursorPosX());
+                    ImGui::ColorEdit3("##BackgroundColorSlider", &backgroundColor.r, ImGuiColorEditFlags_Float);
+                    ImGui::PopItemWidth();
+
+                    ImGui::Spacing();
                 }
 
                 if (ImGui::CollapsingHeader("Lighting", ImGuiTreeNodeFlags_DefaultOpen))
@@ -400,6 +411,8 @@ int main(int argc, char *argv[])
                     indentedLabel("Animated light:");
                     ImGui::SameLine();
                     ImGui::Checkbox("##AnimatedLightCheckBox", &animateLightRotation);
+
+                    ImGui::Spacing();
                 }
 
                 if (ImGui::CollapsingHeader("Simulation", ImGuiTreeNodeFlags_DefaultOpen))
@@ -424,8 +437,11 @@ int main(int argc, char *argv[])
                     int iterations = wrap.GetSmoothIterations();
                     if (ImGui::DragInt("##SmoothIterationDrag", &iterations, 0.1f, 0, 10, "%d steps"))
                         wrap.SetSmoothIterations(iterations);
+
+                    ImGui::Spacing();
                 }
 
+                ImGui::PopItemWidth();
                 ImGui::End();
             }
 
