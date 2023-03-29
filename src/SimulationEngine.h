@@ -1,5 +1,5 @@
-#ifndef PARTICLESYSTEM_H
-#define PARTICLESYSTEM_H
+#ifndef SIMULATIONENGINE_H
+#define SIMULATIONENGINE_H
 
 #include "Base/Mesh.h"
 
@@ -142,7 +142,7 @@ void damperFn(const Link* link);
 void springDamperFn(const Link* link);
 
 
-struct ParticleSystem 
+struct SimulationEngine 
 {
     std::vector<Particle> particles;
     std::vector<Link> links;
@@ -150,9 +150,9 @@ struct ParticleSystem
 };
 
 // Solvers
-void massSpringSolver(ParticleSystem& partSys, const double& deltaTime);
-void massSpringGravitySolver(ParticleSystem& partSys, const double& deltaTime);
-void massSpringGravityWindSolver(ParticleSystem& partSys, const double& deltaTime);
+void massSpringSolver(SimulationEngine& engine, const double& deltaTime);
+void massSpringGravitySolver(SimulationEngine& engine, const double& deltaTime);
+void massSpringGravityWindSolver(SimulationEngine& engine, const double& deltaTime);
 
 // Utils
 static float gravity = 9.81f;
@@ -163,7 +163,7 @@ glm::vec3& getWind();
 
 
 
-void InitClothFromMesh(ParticleSystem& partSys,
+void InitClothFromMesh(SimulationEngine& engine,
                        const std::vector<Vertex> vertices,
                        const uint32_t& divisionsW, 
                        const uint32_t& divisionsH,

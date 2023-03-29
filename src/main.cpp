@@ -1,4 +1,4 @@
-#include "ParticleSystem.h"
+#include "SimulationEngine.h"
 #include "WrapDeformer.h"
 #include "SelfShadows.h"
 #include "ShadowMap.h"
@@ -158,8 +158,8 @@ int main(int argc, char *argv[])
     clothVertexArray->Unbind();
 
     // Initialize the simulation engine
-    ParticleSystem partSys;
-    InitClothFromMesh(partSys, clothVertices, 60, 40, fe);
+    SimulationEngine engine;
+    InitClothFromMesh(engine, clothVertices, 60, 40, fe);
 
     // Initialize the deformer that will wrap the fibers vertices to the simulated mesh
     WrapDeformer wrap;
@@ -194,10 +194,10 @@ int main(int argc, char *argv[])
 
             if (enableSimulation && (showFibers || showClothMesh))
             {
-                massSpringGravityWindSolver(partSys, h);
-                for (int i = 0 ; i < partSys.particles.size() ; ++i)
+                massSpringGravityWindSolver(engine, h);
+                for (int i = 0 ; i < engine.particles.size() ; ++i)
                 {
-                    clothVertices[i].position = partSys.particles[i].position;
+                    clothVertices[i].position = engine.particles[i].position;
                 }
                 Mesh::GenerateNormals(clothVertices, clothIndices);
 
@@ -412,7 +412,7 @@ int main(int argc, char *argv[])
                     if (ImGui::Button("Reset##Simulation"))
                     {
                         Mesh::BuildPlane(22.0f, 15.0f, 60, 40, clothVertices, clothIndices);
-                        InitClothFromMesh(partSys, clothVertices, 60, 40, fe);
+                        InitClothFromMesh(engine, clothVertices, 60, 40, fe);
                     }
 
                     indentedLabel("Show simulation mesh :");

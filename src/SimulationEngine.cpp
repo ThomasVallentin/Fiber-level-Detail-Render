@@ -1,4 +1,4 @@
-#include "ParticleSystem.h"
+#include "SimulationEngine.h"
 
 #include <omp.h>
 
@@ -100,39 +100,39 @@ void Obstacle::update(Particle* particle) const
     }    
 }
 
-void massSpringSolver(ParticleSystem& partSys, const double &deltaTime)
+void massSpringSolver(SimulationEngine& engine, const double &deltaTime)
 {
-    for (const auto& link : partSys.links) {
+    for (const auto& link : engine.links) {
         link.update(&link);
     }
 
-    for (auto& part : partSys.particles) {
+    for (auto& part : engine.particles) {
         part.update(&part, deltaTime);
     }
 }
 
-void massSpringGravitySolver(ParticleSystem& partSys, const double &deltaTime)
+void massSpringGravitySolver(SimulationEngine& engine, const double &deltaTime)
 {
-    for (const auto& link : partSys.links) {
+    for (const auto& link : engine.links) {
         link.update(&link);
     }
 
-    for (auto& part : partSys.particles) {
+    for (auto& part : engine.particles) {
         part.forces += glm::vec3(0, -gravity, 0);
         part.update(&part, deltaTime);
     }
 }
 
-void massSpringGravityWindSolver(ParticleSystem& partSys, const double &deltaTime)
+void massSpringGravityWindSolver(SimulationEngine& engine, const double &deltaTime)
 {
     #pragma omp parallel for num_threads(omp_get_max_threads())
-    for (const auto& link : partSys.links) {
+    for (const auto& link : engine.links) {
         link.update(&link);
     }
 
     #pragma omp parallel for num_threads(omp_get_max_threads())
-    for (auto& part : partSys.particles) {
-        for (const auto& obstacle : partSys.obstacles)
+    for (auto& part : engine.particles) {
+        for (const auto& obstacle : engine.obstacles)
             obstacle.update(&part);
 
         part.forces += glm::vec3(0, -gravity, 0);
@@ -153,7 +153,7 @@ glm::vec3& getWind()
 }
 
 
-void InitClothFromMesh(ParticleSystem& partSys,
+void InitClothFromMesh(SimulationEngine& engine,
                        const std::vector<Vertex> vertices,
                        const uint32_t& divisionsW, 
                        const uint32_t& divisionsH,
@@ -161,8 +161,8 @@ void InitClothFromMesh(ParticleSystem& partSys,
     float k = 0.2f;
     float z = 0.03f;
 
-    partSys.links.clear();
-    partSys.particles.clear();
+    engine.links.clear();
+    engine.particles.clear();
 
     uint32_t vtxCountW = divisionsW + 1;
     uint32_t vtxCountH = divisionsH + 1;
@@ -171,20 +171,20 @@ void InitClothFromMesh(ParticleSystem& partSys,
             auto part = Particle{vertices[y * (vtxCountW) + x].position};
             part.mass = 1.0f;
             part.update = leapFrog;
-            partSys.particles.push_back(part);
+            engine.particles.push_back(part);
         }
     }
     // Top line is only composed of fixed points
     for (int x=0 ; x < vtxCountW ; ++x) {
-        partSys.particles.push_back(FixedPoint(vertices[(vtxCountH - 1) * vtxCountW + x].position));
+        engine.particles.push_back(FixedPoint(vertices[(vtxCountH - 1) * vtxCountW + x].position));
     }
 
     auto addLink = [&](const uint32_t& i1, const uint32_t& i2) {
-        auto& part1 = partSys.particles[i1];
-        auto& part2 = partSys.particles[i2];
+        auto& part1 = engine.particles[i1];
+        auto& part2 = engine.particles[i2];
         glm::vec3 diff = part1.position - part2.position;
 
-        partSys.links.push_back(SpringDamper(
+        engine.links.push_back(SpringDamper(
             &part1, &part2,
             K(k, fe, 1.0f), glm::length(diff), 
             Z(z, fe, 1.0f)));
