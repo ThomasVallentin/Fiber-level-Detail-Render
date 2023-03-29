@@ -50,7 +50,6 @@ float h = 1.0 / fe;
 // Rendering parameters
 bool showFibers = true;
 bool showClothMesh = false;
-bool showFloor = false;
 
 bool useAmbientOcclusion = true;
 
@@ -100,40 +99,40 @@ int main(int argc, char *argv[])
 
     // Merge all the curves into a single vector to draw all of them in a single drawcall
     // This need to be replaced by the proper loading of the fiber data
-    std::vector<glm::vec3> controlPoints;
+    std::vector<glm::vec3> fibersVertices;
     for (const auto& fiber : closedFibersCP)
     {
         for (const auto& cPoints : fiber)
-            controlPoints.push_back(cPoints);
-        controlPoints.push_back(fiber.front());
+            fibersVertices.push_back(cPoints);
+        fibersVertices.push_back(fiber.front());
     }
     for (const auto& fiber : openFibersCP)
         for (const auto& cPoints : fiber)
-            controlPoints.push_back(cPoints);
+            fibersVertices.push_back(cPoints);
 
-    // Send the data to OpenGL
-    uint32_t fibersVertexCount = controlPoints.size();
-    auto fibersVertexBuffer = VertexBuffer::Create(controlPoints.data(), 
-                                                   fibersVertexCount * sizeof(glm::vec3));
-    fibersVertexBuffer->SetLayout({{"Position",  3, GL_FLOAT, false}});
+    uint32_t fibersVertexCount = fibersVertices.size();
 
-    std::vector<uint32_t> indices;
+    std::vector<uint32_t> fibersIndices;
     for (size_t i = 0 ; i < fibersVertexCount - 3 ; i++)
     {
-        indices.push_back(i);
-        indices.push_back(i+1);
-        indices.push_back(i+2);
-        indices.push_back(i+3);
+        fibersIndices.push_back(i);
+        fibersIndices.push_back(i+1);
+        fibersIndices.push_back(i+2);
+        fibersIndices.push_back(i+3);
     }
-    auto fibersIndexBuffer = IndexBuffer::Create(indices.data(), 
-                                                 indices.size());
 
+    // Send the fibers data to OpenGL
+    auto fibersVertexBuffer = VertexBuffer::Create(fibersVertices.data(), 
+                                                   fibersVertexCount * sizeof(glm::vec3));
+    fibersVertexBuffer->SetLayout({{"Position",  3, GL_FLOAT, false}});
+    auto fibersIndexBuffer = IndexBuffer::Create(fibersIndices.data(), 
+                                                 fibersIndices.size());
     auto fibersVertexArray = VertexArray::Create();
     fibersVertexArray->Bind();
     fibersVertexArray->AddVertexBuffer(fibersVertexBuffer);
     fibersVertexArray->SetIndexBuffer(fibersIndexBuffer);
     fibersVertexArray->Unbind();
-    
+
     glPatchParameteri(GL_PATCH_VERTICES, 4);
 
     Shader fiberShader(resolver.Resolve("src/shaders/fibers.vs.glsl").c_str(), 
@@ -145,10 +144,7 @@ int main(int argc, char *argv[])
     // Generate a fabric mesh used to deform the fibers
     std::vector<Vertex> clothVertices;
     std::vector<uint32_t> clothIndices;
-    Mesh::BuildPlane(22.0f, 15.0f, 60, 40, clothVertices, clothIndices);    
-    ParticleSystem partSys;
-    InitClothFromMesh(partSys, clothVertices, 60, 40, fe);
-
+    Mesh::BuildPlane(22.0f, 15.0f, 60, 40, clothVertices, clothIndices);
     auto clothVertexBuffer = VertexBuffer::Create(clothVertices.data(), 
                                                   clothVertices.size() * sizeof(Vertex));
     clothVertexBuffer->SetLayout({{"Position",  3, GL_FLOAT, false},
@@ -161,34 +157,18 @@ int main(int argc, char *argv[])
     clothVertexArray->SetIndexBuffer(clothIndexBuffer);
     clothVertexArray->Unbind();
 
+    // Initialize the simulation engine
+    ParticleSystem partSys;
+    InitClothFromMesh(partSys, clothVertices, 60, 40, fe);
+
+    // Initialize the deformer that will wrap the fibers vertices to the simulated mesh
     WrapDeformer wrap;
-    wrap.Initialize(controlPoints, clothVertices, clothIndices);
+    wrap.Initialize(fibersVertices, clothVertices, clothIndices);
 
     // Shadow mapping
     DirectionalLight directional(initLightDirection, {0.8f, 0.8f, 0.8f});
     ShadowMap shadowMap(4096);
     
-    Shader blitChannelShader(resolver.Resolve("src/shaders/utility/fullScreen.vs.glsl").c_str(), 
-                             resolver.Resolve("src/shaders/utility/blitTextureChannel.fs.glsl").c_str());
-
-    // Simple floor to visualize the casted shadows
-    std::vector<Vertex> floorVertices = {{{-10.0, 0.0, -10.0}, {0.0, 1.0, 0.0}, {0.0, 0.0}},
-                                         {{-10.0, 0.0,  10.0}, {0.0, 1.0, 0.0}, {0.0, 1.0}},
-                                         {{ 10.0, 0.0,  10.0}, {0.0, 1.0, 0.0}, {1.0, 1.0}},
-                                         {{ 10.0, 0.0, -10.0}, {0.0, 1.0, 0.0}, {1.0, 0.0}}};
-    std::vector<uint32_t> floorIndices = {0, 1, 2, 2, 3, 0};
-    auto floorVertexBuffer = VertexBuffer::Create(floorVertices.data(), 
-                                                  floorVertices.size() * sizeof(Vertex));
-    floorVertexBuffer->SetLayout({{"Position",  3, GL_FLOAT, false},
-                                  {"Normal",    3, GL_FLOAT, false},
-                                  {"TexCoord",  2, GL_FLOAT, false}});
-    auto floorIndexBuffer = IndexBuffer::Create(floorIndices.data(), floorIndices.size()); 
-    auto floorVertexArray = VertexArray::Create();
-    floorVertexArray->Bind();
-    floorVertexArray->AddVertexBuffer(floorVertexBuffer);
-    floorVertexArray->SetIndexBuffer(floorIndexBuffer);
-    floorVertexArray->Unbind();
-
     Shader lambertShader(resolver.Resolve("src/shaders/default3D.vs.glsl").c_str(), 
                          resolver.Resolve("src/shaders/lambert.fs.glsl").c_str());
 
@@ -234,9 +214,9 @@ int main(int argc, char *argv[])
             
             if (showFibers)
             {
-                wrap.Deform(controlPoints, clothVertices, clothIndices);
+                wrap.Deform(fibersVertices, clothVertices, clothIndices);
                 fibersVertexBuffer->Bind();
-                fibersVertexBuffer->SetData(controlPoints.data(), 
+                fibersVertexBuffer->SetData(fibersVertices.data(), 
                                             fibersVertexCount * sizeof(glm::vec3));
                 fibersVertexBuffer->Unbind();
             }
@@ -388,10 +368,6 @@ int main(int argc, char *argv[])
                     ImGui::SameLine();
                     ImGui::Checkbox("##ShowFibersCB", &showFibers);
 
-                    indentedLabel("Show floor :");
-                    ImGui::SameLine();
-                    ImGui::Checkbox("##ShowFloorCB", &showFloor);
-                
                     indentedLabel("Ambient occlusion:");
                     ImGui::SameLine();
                     ImGui::Checkbox("##UseAmbientOcclusion", &useAmbientOcclusion);
