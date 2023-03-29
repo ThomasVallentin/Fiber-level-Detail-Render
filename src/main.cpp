@@ -432,6 +432,13 @@ int main(int argc, char *argv[])
                     ImGui::SameLine();
                     ImGui::Checkbox("##EnableSimulationCB", &enableSimulation);
 
+                    ImGui::SameLine();
+                    if (ImGui::Button("Reset##Simulation"))
+                    {
+                        Mesh::BuildPlane(22.0f, 15.0f, 60, 40, clothVertices, clothIndices);
+                        InitClothFromMesh(partSys, clothVertices, 60, 40, fe);
+                    }
+
                     indentedLabel("Show simulation mesh :");
                     ImGui::SameLine();
                     ImGui::Checkbox("##ShowSimulationMeshCB", &showClothMesh);
