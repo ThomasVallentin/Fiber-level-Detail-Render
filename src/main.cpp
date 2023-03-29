@@ -28,15 +28,9 @@
 #define SELF_SHADOWS_TEXTURE_UNIT 1
 
 
-
-#define SHADOW_MAP_TEXTURE_UNIT 0
-#define SELF_SHADOWS_TEXTURE_UNIT 1
-
-
-
 // settings
 const unsigned int SCR_WIDTH = 1600;
-const unsigned int SCR_HEIGHT = 1200;
+const unsigned int SCR_HEIGHT = 900;
 
 // Camera controls :
 // - Pan    : Alt + Middle click + Mouse move
@@ -64,12 +58,11 @@ bool useShadowMapping = true;
 bool useSelfShadows = true;
 
 float shadowMapThickness = 0.15f;
+float selfShadowRotation = 0.0f;
 
 glm::vec3 initLightDirection = glm::normalize(glm::vec3(0.5f, -0.5f, -0.5f));
 float lightRotation = 0.0f;
 bool animateLightRotation = false;
-
-float selfShadowRotation = 0.0f;
 
 bool enableSimulation = false;
 
@@ -96,12 +89,17 @@ int main(int argc, char *argv[])
     };
     window.SetEventCallback(eventCallback);  // Define the event callback of the application
 
+    // Initialize profiler
+    auto& profiler = Profiler::Init(window);
+    std::vector<ProfilingScopeData> profilingScopes;
+
     // Read curves from the BCC file and send them to OpenGL
     std::vector<std::vector<glm::vec3>> closedFibersCP;
     std::vector<std::vector<glm::vec3>> openFibersCP;
     readBCC(resolver.Resolve("resources/fiber.bcc"), closedFibersCP, openFibersCP);
 
     // Merge all the curves into a single vector to draw all of them in a single drawcall
+    // This need to be replaced by the proper loading of the fiber data
     std::vector<glm::vec3> controlPoints;
     for (const auto& fiber : closedFibersCP)
     {
@@ -144,9 +142,8 @@ int main(int argc, char *argv[])
                        resolver.Resolve("src/shaders/fibers.tsc.glsl").c_str(),
                        resolver.Resolve("src/shaders/fibers.tse.glsl").c_str());
 
-    // Fabric mesh used to deform the fibers
+    // Generate a fabric mesh used to deform the fibers
     std::vector<Vertex> clothVertices;
-
     std::vector<uint32_t> clothIndices;
     Mesh::BuildPlane(22.0f, 15.0f, 60, 40, clothVertices, clothIndices);    
     ParticleSystem partSys;
@@ -193,18 +190,13 @@ int main(int argc, char *argv[])
     floorVertexArray->Unbind();
 
     Shader lambertShader(resolver.Resolve("src/shaders/default3D.vs.glsl").c_str(), 
-                       resolver.Resolve("src/shaders/lambert.fs.glsl").c_str());
+                         resolver.Resolve("src/shaders/lambert.fs.glsl").c_str());
 
     // Self Shadows
     SelfShadowsSettings selfShadowsSettings{512, 16};
     std::shared_ptr<Texture3D> selfShadowsTexture = SelfShadows::GenerateTexture(selfShadowsSettings);    
 
-    // Shader slice3DShader(resolver.Resolve("src/shaders/utility/fullScreen.vs.glsl").c_str(),
-    //                      resolver.Resolve("src/shaders/utility/3DTextureSlice.fs.glsl").c_str());
-
     glViewport(0, 0, window.GetWidth(), window.GetHeight());
-    auto& profiler = Profiler::Init(window);
-    std::vector<ProfilingScopeData> profilingScopes;
     while (!window.ShouldClose()) {
         // Making a copy of the profiler data to display it in the UI (so that we display the previous frame stats)
         profilingScopes = profiler.GetScopes();
@@ -343,18 +335,6 @@ int main(int argc, char *argv[])
 
                 glDrawElements(GL_PATCHES, fibersIndexBuffer->GetCount(), GL_UNSIGNED_INT, nullptr);
             }
-            // // Render slices of selfShadow to screen
-            // glViewport(0, 0, 512, 512);
-            // slice3DShader.use();
-            // selfShadowsTexture->Attach(0);
-            // slice3DShader.setInt("uInputTexture", 0);
-            // slice3DShader.setFloat("uDepth", std::sin(currentTime) * 0.5 + 0.5);
-            // glBindVertexArray(dummyVAO);
-            // glDrawArrays(GL_TRIANGLES, 0, 3);
-            // glBindVertexArray(0);
-
-            // directional.SetDirection(camera.GetForwardDirection());
-
 
             if (showClothMesh)
             {
@@ -371,14 +351,6 @@ int main(int argc, char *argv[])
                 glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
             }
         }
-        // // Blit shadow map to the screen
-        // glViewport(0, 0, 512, 512);
-        // blitChannelShader.use();
-        // shadowMap.GetTexture()->Attach(0);
-        // blitChannelShader.setInt("uInput", 0);
-        // glBindVertexArray(dummyVAO);
-        // glDrawArrays(GL_TRIANGLES, 0, 3);
-        // glBindVertexArray(0);
 
         {
             const ProfilingScope scope("UI Rendering");  
@@ -390,13 +362,12 @@ int main(int argc, char *argv[])
             auto& io = ImGui::GetIO();
             ImGui::Begin("Control panel", nullptr);
             {
-                if (ImGui::CollapsingHeader("Stats", ImGuiTreeNodeFlags_DefaultOpen))
+                if (ImGui::CollapsingHeader("Profiling", ImGuiTreeNodeFlags_DefaultOpen))
                 {
-                    indentedLabel("FPS:");
+                    indentedLabel("FPS :");
                     ImGui::SameLine();
                     ImGui::Text("%.1f (%.3fms)", io.Framerate, 1000.0f / io.Framerate);
                 
-                    ImGui::Text("Profiling:");
                     for (const auto& scope : profilingScopes)
                     {
                         float elapsedTime = scope.duration * 1000.0;
@@ -411,7 +382,7 @@ int main(int argc, char *argv[])
                     ImGui::Spacing();
                 }
                 
-                if (ImGui::CollapsingHeader("Rendering parameters", ImGuiTreeNodeFlags_DefaultOpen))
+                if (ImGui::CollapsingHeader("Render settings", ImGuiTreeNodeFlags_DefaultOpen))
                 {
                     indentedLabel("Show fibers :");
                     ImGui::SameLine();
@@ -425,27 +396,30 @@ int main(int argc, char *argv[])
                     ImGui::SameLine();
                     ImGui::Checkbox("##UseAmbientOcclusion", &useAmbientOcclusion);
 
-                    indentedLabel("Shadow Mapping:");
-                    ImGui::SameLine();
-                    ImGui::Checkbox("##UseShadowMapping", &useShadowMapping);
-                
-                    indentedLabel("Shadow Map Thickess:");
-                    ImGui::SameLine();
-                    ImGui::DragFloat("##ShadowMapThicknessSlider", &shadowMapThickness, 0.001f, 0.0f, 1.0);
-
                     indentedLabel("Self Shadows:");
                     ImGui::SameLine();
                     ImGui::Checkbox("##UseSelfShadows", &useSelfShadows);
 
-                    ImGui::BeginDisabled(!useSelfShadows);
-                    indentedLabel("selfShadowRotation:");
+                    indentedLabel("Shadow Mapping:");
                     ImGui::SameLine();
-                    ImGui::DragFloat("##selfShadowRotation", &selfShadowRotation, 0.05f, -180.0f, 180.0f);
+                    ImGui::Checkbox("##UseShadowMapping", &useShadowMapping);
+                
+                    ImGui::BeginDisabled(!useShadowMapping);
+                    indentedLabel("Shadow Map Thickess:");
+                    ImGui::SameLine();
+                    ImGui::DragFloat("##ShadowMapThicknessSlider", &shadowMapThickness, 0.001f, 0.0f, 1.0);
                     ImGui::EndDisabled();
+                }
 
+                if (ImGui::CollapsingHeader("Lighting", ImGuiTreeNodeFlags_DefaultOpen))
+                {
                     indentedLabel("Light Orientation:");
                     ImGui::SameLine();
-                    ImGui::DragFloat("##LightOrientation", &lightRotation, 0.5f, -180.0f, 180.0f, "%.1f");
+                    if (ImGui::DragFloat("##LightOrientation", &lightRotation, 0.5f, -180.1f, 180.1f, "%.1f"))
+                    {
+                        if (lightRotation < -180.0f) lightRotation += 360.0f;
+                        else if (lightRotation > 180.0f)  lightRotation -= 360.0f;
+                    }
                     
                     indentedLabel("Animated light:");
                     ImGui::SameLine();
@@ -469,15 +443,17 @@ int main(int argc, char *argv[])
                         wrap.SetSmoothIterations(iterations);
                 }
 
+                ImGui::End();
             }
-            ImGui::End();
 
+            // Render ImGui items
             ImGui::Render();
             ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         }
 
         {
             // It's the SwapBuffers that actually compute the rendering, not the calls to glXXX commands
+            // recording its computation time
             const ProfilingScope scope("OpenGL Rendering");  
             window.Update();
         }
