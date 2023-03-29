@@ -152,13 +152,13 @@ Window::Window(const WindowInternalData& settings) :
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
         return;
 
-    LOG_DEBUG("Successfully loaded OpenGL !\n"
-              "            Vendor: %s\n"
-              "            Renderer: %s\n"
-              "            Version: %s", 
-              glGetString(GL_VENDOR), 
-              glGetString(GL_RENDERER), 
-              glGetString(GL_VERSION));
+    LOG_INFO("Successfully loaded OpenGL !\n"
+             "            Vendor: %s\n"
+             "            Renderer: %s\n"
+             "            Version: %s", 
+             glGetString(GL_VENDOR), 
+             glGetString(GL_RENDERER), 
+             glGetString(GL_VERSION));
 
     // Add GL callbacks
     glEnable(GL_DEBUG_OUTPUT);
