@@ -68,7 +68,7 @@ std::shared_ptr<Texture3D> SelfShadows::GenerateTexture(const SelfShadowsSetting
 
         // Render absorption from density
         s_absorptionShader->use();
-        s_densityFramebuffer->GetColorAttachment(0)->Bind();
+        s_densityFramebuffer->GetColorAttachment(0)->Attach(0);
         s_absorptionShader->setInt("uDensityTexture", 0);
 
         s_absorptionShader->setFloat("uPlyRadius", settings.plyRadius);

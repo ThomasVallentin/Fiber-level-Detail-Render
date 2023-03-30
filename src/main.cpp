@@ -184,7 +184,6 @@ int main(int argc, char *argv[])
     // Self Shadows
     SelfShadowsSettings selfShadowsSettings{512, 16, (uint32_t)plyCount, plyRadius};
     std::shared_ptr<Texture3D> selfShadowsTexture = SelfShadows::GenerateTexture(selfShadowsSettings);    
-    selfShadowsTexture = SelfShadows::GenerateTexture(selfShadowsSettings);    
 
     glViewport(0, 0, window.GetWidth(), window.GetHeight());
     while (!window.ShouldClose()) {
