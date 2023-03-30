@@ -43,9 +43,13 @@ glm::vec2 mousePos;
 float deltaTime = 0.0f;
 float prevTime = 0.0f;
 
-// Simulation parameters
-float fe = 100.0;
-float h = 1.0 / fe;
+// Fibers generation parameters
+int plyCount = 3;
+int fibersCount = 64;
+int fibersDivisionCount = 4;
+float plyRadius = 0.1f;
+glm::vec2 fiberRadius = {0.1f, 0.2f};
+float fiberRotation = 1.0f;
 
 // Rendering parameters
 bool showFibers = true;
@@ -59,12 +63,16 @@ bool useSelfShadows = true;
 float shadowMapThickness = 0.15f;
 float selfShadowRotation = 0.0f;
 
+// Lighting parameters
 glm::vec3 initLightDirection = glm::normalize(glm::vec3(0.5f, -0.5f, -0.5f));
 float lightRotation = 0.0f;
 bool animateLightRotation = false;
 glm::vec3 backgroundColor = {0.2f, 0.3f, 0.3f};
 
+// Simulation parameters
 bool enableSimulation = false;
+float fe = 100.0;
+float h = 1.0 / fe;
 
 
 int main(int argc, char *argv[])
@@ -174,8 +182,9 @@ int main(int argc, char *argv[])
                          resolver.Resolve("src/shaders/lambert.fs.glsl").c_str());
 
     // Self Shadows
-    SelfShadowsSettings selfShadowsSettings{512, 16};
+    SelfShadowsSettings selfShadowsSettings{512, 16, (uint32_t)plyCount, plyRadius};
     std::shared_ptr<Texture3D> selfShadowsTexture = SelfShadows::GenerateTexture(selfShadowsSettings);    
+    selfShadowsTexture = SelfShadows::GenerateTexture(selfShadowsSettings);    
 
     glViewport(0, 0, window.GetWidth(), window.GetHeight());
     while (!window.ShouldClose()) {
@@ -270,10 +279,14 @@ int main(int argc, char *argv[])
             
                 fibersVertexArray->Bind();
 
-                fiberShader.setFloat("R_ply", 0.1f);
-                fiberShader.setFloat("Rmin", 0.1f);
-                fiberShader.setFloat("Rmax", 0.2f);
-                fiberShader.setFloat("theta", 1.0f);
+                fiberShader.setInt("uPlyCount", plyCount);
+                fiberShader.setInt("uTessLineCount", fibersCount);
+                fiberShader.setInt("uTessSubdivisionCount", fibersDivisionCount);
+
+                fiberShader.setFloat("R_ply", plyRadius);
+                fiberShader.setFloat("Rmin", fiberRadius.x);
+                fiberShader.setFloat("Rmax", fiberRadius.y);
+                fiberShader.setFloat("theta", fiberRotation);
                 fiberShader.setFloat("s", 2.0f);  // length of rotation
                 fiberShader.setFloat("eN", 1.0f); // ellipse scaling factor along Normal
                 fiberShader.setFloat("eB", 1.0f); // ellipse scaling factor along Bitangent
@@ -283,8 +296,6 @@ int main(int argc, char *argv[])
                 fiberShader.setFloat("R[2]", 0.30f); // distance from fiber i to ply center
                 fiberShader.setFloat("R[3]", 0.35f); // distance from fiber i to ply center
 
-                fiberShader.setInt("uTessLineCount", 64); // distance from fiber i to ply center
-                fiberShader.setInt("uTessSubdivisionCount", 4);
                 fiberShader.setVec3("uLightDirection", glm::vec3(viewMatrix * glm::vec4(directional.GetDirection(), 0.0)));
 
                 // Fragment related uniforms
@@ -315,6 +326,7 @@ int main(int argc, char *argv[])
                 }
 
                 glDrawElements(GL_PATCHES, fibersIndexBuffer->GetCount(), GL_UNSIGNED_INT, nullptr);
+                fibersVertexArray->Unbind();
             }
 
             if (showClothMesh)
@@ -365,31 +377,72 @@ int main(int argc, char *argv[])
                     ImGui::Spacing();
                 }
                 
+                if (ImGui::CollapsingHeader("Fiber generation settings", ImGuiTreeNodeFlags_DefaultOpen))
+                {
+                    indentedLabel("Ply count :");
+                    ImGui::SameLine();
+                    if (ImGui::DragInt("##PlyCountDrag", &plyCount, 0.1f, 0, 10, 
+                                       plyCount > 1 ? "%d ply" : "%d plies"))
+
+                    {
+                        selfShadowsSettings.plyCount = plyCount;
+                        selfShadowsTexture = SelfShadows::GenerateTexture(selfShadowsSettings);    
+                    }
+
+                    indentedLabel("Fibers count :");
+                    ImGui::SameLine();
+                    if (ImGui::DragInt("##FibersCountDrag", &fibersCount, 0.1f, plyCount, 64, 
+                                   fibersCount > 1 ? "%d fibers" : "%d fiber"))
+                    {
+                        fibersCount = std::max(plyCount, fibersCount);
+                    }
+
+                    indentedLabel("Fibers divisions :");
+                    ImGui::SameLine();
+                    if (ImGui::DragInt("##FibersDivisonDrag", &fibersDivisionCount, 0.1f, 2, 64, 
+                                       fibersDivisionCount > 1 ? "%d divisions" : "%d division"))
+                    {
+                        fibersDivisionCount = std::max(2, fibersDivisionCount);
+                    }
+
+                    indentedLabel("Ply radius :");
+                    ImGui::SameLine();
+                    ImGui::DragFloat("##PlyRadiusDrag", &plyRadius, 0.01f, 0.0f, 5.0f, "%.2f", ImGuiSliderFlags_Logarithmic);
+
+                    indentedLabel("Fibers radius :");
+                    ImGui::SameLine();
+                    ImGui::DragFloat2("##FibersRadiusDrag", &fiberRadius.x, 0.01f, 0.0f, 5.0f, "%.2f", ImGuiSliderFlags_Logarithmic);
+
+                    indentedLabel("Fibers rotation :");
+                    ImGui::SameLine();
+                    ImGui::DragFloat("##FibersRotationDrag", &fiberRotation, 0.01f, -5.0f, 5.0f, "%.2f");
+                }
+
                 if (ImGui::CollapsingHeader("Render settings", ImGuiTreeNodeFlags_DefaultOpen))
                 {
                     indentedLabel("Show fibers :");
                     ImGui::SameLine();
                     ImGui::Checkbox("##ShowFibersCB", &showFibers);
 
-                    indentedLabel("Ambient occlusion:");
+                    indentedLabel("Ambient occlusion :");
                     ImGui::SameLine();
                     ImGui::Checkbox("##UseAmbientOcclusion", &useAmbientOcclusion);
 
-                    indentedLabel("Self Shadows:");
+                    indentedLabel("Self Shadows :");
                     ImGui::SameLine();
                     ImGui::Checkbox("##UseSelfShadows", &useSelfShadows);
 
-                    indentedLabel("Shadow Mapping:");
+                    indentedLabel("Shadow Mapping :");
                     ImGui::SameLine();
                     ImGui::Checkbox("##UseShadowMapping", &useShadowMapping);
                 
                     ImGui::BeginDisabled(!useShadowMapping);
-                    indentedLabel("Shadow Map Thickess:");
+                    indentedLabel("Shadow Map Thickess :");
                     ImGui::SameLine();
                     ImGui::DragFloat("##ShadowMapThicknessSlider", &shadowMapThickness, 0.001f, 0.0f, 1.0);
                     ImGui::EndDisabled();
 
-                    indentedLabel("Background Color:");
+                    indentedLabel("Background Color :");
                     ImGui::SameLine();
                     ImGui::PushItemWidth(ImGui::GetWindowContentRegionWidth() - ImGui::GetCursorPosX());
                     ImGui::ColorEdit3("##BackgroundColorSlider", &backgroundColor.r, ImGuiColorEditFlags_Float);
@@ -400,7 +453,7 @@ int main(int argc, char *argv[])
 
                 if (ImGui::CollapsingHeader("Lighting", ImGuiTreeNodeFlags_DefaultOpen))
                 {
-                    indentedLabel("Light Orientation:");
+                    indentedLabel("Light Orientation :");
                     ImGui::SameLine();
                     if (ImGui::DragFloat("##LightOrientation", &lightRotation, 0.5f, -180.1f, 180.1f, "%.1f"))
                     {
@@ -408,7 +461,7 @@ int main(int argc, char *argv[])
                         else if (lightRotation > 180.0f)  lightRotation -= 360.0f;
                     }
                     
-                    indentedLabel("Animated light:");
+                    indentedLabel("Animated light :");
                     ImGui::SameLine();
                     ImGui::Checkbox("##AnimatedLightCheckBox", &animateLightRotation);
 
@@ -417,7 +470,7 @@ int main(int argc, char *argv[])
 
                 if (ImGui::CollapsingHeader("Simulation", ImGuiTreeNodeFlags_DefaultOpen))
                 {
-                    indentedLabel("Enable simulation:");
+                    indentedLabel("Enable simulation :");
                     ImGui::SameLine();
                     ImGui::Checkbox("##EnableSimulationCB", &enableSimulation);
 
@@ -432,7 +485,7 @@ int main(int argc, char *argv[])
                     ImGui::SameLine();
                     ImGui::Checkbox("##ShowSimulationMeshCB", &showClothMesh);
 
-                    indentedLabel("Smoothing iterations:");
+                    indentedLabel("Smoothing iterations :");
                     ImGui::SameLine();
                     int iterations = wrap.GetSmoothIterations();
                     if (ImGui::DragInt("##SmoothIterationDrag", &iterations, 0.1f, 0, 10, "%d steps"))

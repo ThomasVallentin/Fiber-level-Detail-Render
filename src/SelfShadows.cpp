@@ -20,6 +20,9 @@ std::shared_ptr<Texture3D> SelfShadows::GenerateTexture(const SelfShadowsSetting
                                                       resolver.Resolve("src/shaders/selfShadows.fs.glsl").c_str());
     }
 
+    GLint restoreViewport[4];
+    glGetIntegerv( GL_VIEWPORT, restoreViewport );
+
     // Density framebuffer
     s_densityFramebuffer = std::make_shared<Framebuffer>(settings.textureSize, settings.textureSize);
     s_densityFramebuffer->Bind();
@@ -93,5 +96,11 @@ std::shared_ptr<Texture3D> SelfShadows::GenerateTexture(const SelfShadowsSetting
                                               GL_R8, GL_RED, GL_UNSIGNED_BYTE, 
                                               texture3DData.data(), 
                                               true);
+    
+    glViewport(restoreViewport[0], 
+               restoreViewport[1], 
+               restoreViewport[2], 
+               restoreViewport[3]);
+    
     return result;
 }

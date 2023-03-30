@@ -8,6 +8,8 @@ const float PI = 3.14159265;
 uniform mat4 uModelMatrix;           // the model matrix
 uniform mat4 uViewMatrix;            // the view matrix
 
+uniform int uPlyCount = 3;
+
 uniform float R_ply; // R_ply
 uniform float Rmin; 
 uniform float Rmax; 
@@ -69,15 +71,13 @@ float randomFloat(vec2 smple)
 }
 
 void main() {
-    int plyCount = 3;
-
     int fiberCount = int(gl_TessLevelOuter[0]);
-    int fibersPerPly = int(gl_TessLevelOuter[0]) / plyCount;
+    int fibersPerPly = int(gl_TessLevelOuter[0]) / uPlyCount;
 
     float u = gl_TessCoord.x;
     float v = gl_TessCoord.y;
     int fiberIndex = int(v * (fiberCount + 1));
-    int plyIndex = fiberIndex % plyCount;
+    int plyIndex = fiberIndex % uPlyCount;
 
     vec3 cp1 = pPrevPoint.xyz;
     vec3 cp2 = gl_in[0].gl_Position.xyz;
@@ -94,12 +94,12 @@ void main() {
     
     // Computing the displacement from the yarn to the ply
     float globalU = gl_PrimitiveID + u;
-    float thetaPly = 2 * PI * plyIndex / plyCount;
+    float thetaPly = 2 * PI * plyIndex / uPlyCount;
     vec3 displacement_ply = 0.5 * R_ply * (cos(thetaPly + globalU * theta) * N_yarn + (sin(thetaPly + globalU * theta) * B_yarn));
 
     // Going from the ply to the fiber, computing the fiber radius and rotation
     float thetaI = 2.0 * PI * fiberIndex / fibersPerPly;
-    float Ri = fiberIndex < plyCount ? 0.0 : R[fiberIndex % 4];  // First fiber of each ply is the core fiber
+    float Ri = fiberIndex < uPlyCount ? 0.0 : R[fiberIndex % 4];  // First fiber of each ply is the core fiber
     float R_fiber = 0.5 * Ri * (Rmax + Rmin + (Rmax - Rmin) * cos(thetaI + s * globalU * theta));
 
     // Computing the displacement from the ply to the fiber
