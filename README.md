@@ -1,6 +1,6 @@
-# Fiber-level-Detail-Render
+# Real-time Cloth Rendering with Fiber-level Detail
 
-Implémentation du papier https://people.csail.mit.edu/kuiwu/rtfr.html portant sur le rendu de fibres de textiles en temps réel. Ce projet est réalisé dans le cadre du Master 2 Sciences de l'Image de l'Université Gustave Eiffel. 
+Implémentation du papier [Real-time Cloth Rendering with Fiber-level Detail](https://people.csail.mit.edu/kuiwu/rtfr.html) portant sur le rendu de fibres de textiles en temps réel. Ce projet est réalisé dans le cadre du Master 2 Sciences de l'Image de l'Université Gustave Eiffel. 
 
 # Dépendances :
 
