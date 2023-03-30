@@ -9,7 +9,7 @@ layout (vertices=2) out;
 // == Uniform ==
 
 uniform int uTessLineCount = 64;
-uniform int uTessSubdivisionCount = 8;
+uniform int uTessSubdivisionCount = 4;
 
 // == Outputs ==
 
@@ -21,8 +21,8 @@ void main()
     // invocation zero controls tessellation levels for the entire patch
     if (gl_InvocationID == 0)
     {
-        gl_TessLevelOuter[0] = uTessLineCount;
-        gl_TessLevelOuter[1] = uTessSubdivisionCount;
+        gl_TessLevelOuter[0] = 64;
+        gl_TessLevelOuter[1] = 4;
     
         pPrevPoint = gl_in[0].gl_Position;
         pNextPoint = gl_in[3].gl_Position;

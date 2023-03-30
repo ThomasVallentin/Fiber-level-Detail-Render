@@ -45,7 +45,7 @@ void main()
     float thickness = 0.003;
 
     gs_out.fiberIndex = gs_in[0].globalFiberIndex;
-    if (gs_out.fiberIndex < uPlyCount) 
+    if (gs_out.fiberIndex % 22 == 0) 
         thickness *= 10.0;
 
     vec3 pntA = gl_in[0].gl_Position.xyz;

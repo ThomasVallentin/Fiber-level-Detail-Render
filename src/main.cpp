@@ -50,7 +50,7 @@ int fibersDivisionCount = 4;
 float plyRadius = 0.1f;
 glm::vec2 fiberRadius = {0.1f, 0.2f};
 float fiberRotation = 1.0f;
-
+glm::vec3 fiberColor = glm::vec3(0.8f);
 // Rendering parameters
 bool showFibers = true;
 bool showClothMesh = false;
@@ -298,6 +298,7 @@ int main(int argc, char *argv[])
 
                 // Fragment related uniforms
                 fiberShader.setBool("uUseAmbientOcclusion", useAmbientOcclusion); // distance from fiber i to ply center
+                fiberShader.setVec3("fiberColor",fiberColor);
                 if (useShadowMapping)
                 {
                     fiberShader.setMat4("uViewToLightMatrix", directional.GetProjectionMatrix() * directional.GetViewMatrix() * viewInverseMatrix);
@@ -444,6 +445,12 @@ int main(int argc, char *argv[])
                     ImGui::SameLine();
                     ImGui::PushItemWidth(ImGui::GetWindowContentRegionWidth() - ImGui::GetCursorPosX());
                     ImGui::ColorEdit3("##BackgroundColorSlider", &backgroundColor.r, ImGuiColorEditFlags_Float);
+                    ImGui::PopItemWidth();
+
+                    indentedLabel("Fibers Color :");
+                    ImGui::SameLine();
+                    ImGui::PushItemWidth(ImGui::GetWindowContentRegionWidth() - ImGui::GetCursorPosX());
+                    ImGui::ColorEdit3("##FiberColorSlider", &fiberColor.r, ImGuiColorEditFlags_Float);
                     ImGui::PopItemWidth();
 
                     ImGui::Spacing();

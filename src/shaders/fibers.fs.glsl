@@ -35,6 +35,8 @@ uniform sampler3D uSelfShadowsTexture;
 uniform float uSelfShadowsIntensity = 1.0;
 uniform float uSelfShadowRotation = 0.0;
 
+uniform vec3 fiberColor=vec3(0.8);
+
 // == Outputs ==
 
 out vec4 FragColor;
@@ -110,7 +112,8 @@ void main()
     vec3 viewSpaceLightDir = vec3(uViewMatrix * vec4(normalize(vec3(0.0, 1.0, 1.0)), 0.0));
     vec3 viewSpaceNormal = normalize(fs_in.normal);
 
-    vec3 albedo = sampleAlbedo(vec2(0.0, 0.0));
+    //vec3 albedo = sampleAlbedo(vec2(0.0, 0.0));
+    vec3 albedo = fiberColor;
     float ambientOcclusion = min(1.0, max(sampleAmbientOcclusion(), 0.0) + 0.2);
     float shadowMask = 1.0 - sampleShadows(uViewToLightMatrix * vec4(fs_in.position, 1.0));
     float selfShadows = sampleSelfShadows(fs_in.selfShadowSample);
