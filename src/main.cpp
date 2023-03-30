@@ -172,7 +172,6 @@ int main(int argc, char *argv[])
 
     // Initialize the deformer that will wrap the fibers vertices to the simulated mesh
     WrapDeformer wrap;
-    wrap.Initialize(fibersVertices, clothVertices, clothIndices);
 
     // Shadow mapping
     DirectionalLight directional(initLightDirection, {0.8f, 0.8f, 0.8f});
@@ -221,7 +220,7 @@ int main(int argc, char *argv[])
             // Fibers deformation
             const ProfilingScope scope("Fibers deformation");  
             
-            if (showFibers)
+            if (wrap.IsInitialized() && showFibers)
             {
                 wrap.Deform(fibersVertices, clothVertices, clothIndices);
                 fibersVertexBuffer->Bind();
@@ -471,7 +470,11 @@ int main(int argc, char *argv[])
                 {
                     indentedLabel("Enable simulation :");
                     ImGui::SameLine();
-                    ImGui::Checkbox("##EnableSimulationCB", &enableSimulation);
+                    if (ImGui::Checkbox("##EnableSimulationCB", &enableSimulation));
+                    {
+                        if (!wrap.IsInitialized())
+                            wrap.Initialize(fibersVertices, clothVertices, clothIndices);
+                    }
 
                     ImGui::SameLine();
                     if (ImGui::Button("Reset##Simulation"))

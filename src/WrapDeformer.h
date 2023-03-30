@@ -13,6 +13,7 @@ public:
     WrapDeformer();
     ~WrapDeformer();
 
+    inline bool IsInitialized() const { return (!m_bindings.empty() || !m_coordinates.empty() || !m_restPoints.empty()); }
     void Initialize(const std::vector<glm::vec3>& points, const std::vector<Vertex>& srcVertices, const std::vector<uint32_t>& srcIndices);
     void Deform(std::vector<glm::vec3>& points, const std::vector<Vertex>& srcVertices, const std::vector<uint32_t>& srcIndices) const;
 
