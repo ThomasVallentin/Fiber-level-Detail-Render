@@ -110,7 +110,7 @@ void main() {
 
     // Outputs
     gl_Position = uViewMatrix * uModelMatrix * vec4(yarnCenter + displacement_ply + displacement_fiber, 1.0);
-    ts_out.globalFiberIndex = int(v * fiberCount);
+    ts_out.globalFiberIndex = fiberIndex;
     ts_out.yarnCenter  = vec3(uViewMatrix * uModelMatrix * vec4(yarnCenter, 1.0));
     ts_out.yarnNormal  = vec3(uViewMatrix * uModelMatrix * vec4(N_yarn,     0.0));
     ts_out.yarnTangent = vec3(uViewMatrix * uModelMatrix * vec4(T_yarn,     0.0));

@@ -21,8 +21,8 @@ void main()
     // invocation zero controls tessellation levels for the entire patch
     if (gl_InvocationID == 0)
     {
-        gl_TessLevelOuter[0] = 64;
-        gl_TessLevelOuter[1] = 4;
+        gl_TessLevelOuter[0] = uTessLineCount;
+        gl_TessLevelOuter[1] = uTessSubdivisionCount;
     
         pPrevPoint = gl_in[0].gl_Position;
         pNextPoint = gl_in[3].gl_Position;
