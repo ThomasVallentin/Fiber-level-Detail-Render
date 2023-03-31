@@ -50,7 +50,7 @@ VertexBufferPtr VertexBuffer::Create()
     return VertexBufferPtr(buffer);
 }
 
-VertexBufferPtr VertexBuffer::Create(void* data, const GLuint& size)
+VertexBufferPtr VertexBuffer::Create(const void* data, const GLuint& size)
 {
     VertexBuffer* buffer = new VertexBuffer();
     buffer->Bind();

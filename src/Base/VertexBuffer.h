@@ -98,7 +98,7 @@ public:
     void SetData(const void* data, const GLuint& size) const;
 
     static VertexBufferPtr Create();
-    static VertexBufferPtr Create(void* data, const GLuint& size);
+    static VertexBufferPtr Create(const void* data, const GLuint& size);
 
 private:
     VertexBuffer();

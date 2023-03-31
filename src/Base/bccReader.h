@@ -2,12 +2,19 @@
 #define BCC_H
 
 #include "Logging.h"
+#include "VertexArray.h"
+#include "VertexBuffer.h"
 
 #include <glad/glad.h>
 #include <glm/glm.hpp>
 
 #include <vector>
 #include <iostream>
+#include <filesystem>
+
+
+namespace fs = std::filesystem;
+
 
 struct BCCHeader
 {
@@ -73,5 +80,74 @@ void readBCC(const std::string& filename, std::vector<std::vector<glm::vec3>>& c
     
     LOG_INFO("Successfully loaded %d open curves and %d closed curves", openFibersCP.size(), closedFibersCP.size());
 }
+
+
+void LoadBCCFile(const std::string& filePath, std::vector<glm::vec3>& controlPoints, std::vector<uint32_t>& indices)
+{
+    std::vector<std::vector<glm::vec3>> closedFibersCP;
+    std::vector<std::vector<glm::vec3>> openFibersCP;
+    readBCC(filePath, closedFibersCP, openFibersCP);
+
+    controlPoints.clear();
+    indices.clear();
+
+    // Merge all the curves into a single vector to draw all of them in a single drawcall
+    // This need to be replaced by the proper loading of the fiber data
+    for (const auto& fiber : closedFibersCP)
+    {
+        for (const auto& cPoints : fiber)
+            controlPoints.push_back(cPoints);
+        controlPoints.push_back(fiber.front());
+    }
+    for (const auto& fiber : openFibersCP)
+        for (const auto& cPoints : fiber)
+            controlPoints.push_back(cPoints);
+
+    uint32_t vertexCount = controlPoints.size();
+
+    for (size_t i = 0 ; i < vertexCount - 3 ; i++)
+    {
+        indices.push_back(i);
+        indices.push_back(i+1);
+        indices.push_back(i+2);
+        indices.push_back(i+3);
+    }
+}
+
+
+VertexArrayPtr LoadBCCToOpenGL(const std::vector<glm::vec3>& controlPoints, const std::vector<uint32_t>& indices)
+{
+    // Send the fibers data to OpenGL
+    auto vertexBuffer = VertexBuffer::Create(controlPoints.data(), 
+                                             controlPoints.size() * sizeof(glm::vec3));
+    vertexBuffer->SetLayout({{"Position",  3, GL_FLOAT, false}});
+    auto indexBuffer = IndexBuffer::Create(indices.data(), 
+                                                 indices.size());
+    auto vertexArray = VertexArray::Create();
+    vertexArray->Bind();
+    vertexArray->AddVertexBuffer(vertexBuffer);
+    vertexArray->SetIndexBuffer(indexBuffer);
+    vertexArray->Unbind();
+
+    return vertexArray;
+}
+
+
+std::vector<fs::path> ListBCCFiles(const fs::path& directory)
+{
+    std::vector<fs::path> result; 
+    for (const auto& entry : fs::directory_iterator(directory))
+    {
+        if (entry.path().extension() == ".bcc")
+        {
+            result.push_back(entry.path());
+        }
+    }
+
+    return result;
+}
+
+
+
 
 #endif  // BCC_H

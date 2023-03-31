@@ -102,45 +102,20 @@ int main(int argc, char *argv[])
     std::vector<ProfilingScopeData> profilingScopes;
 
     // Read curves from the BCC file and send them to OpenGL
-    std::vector<std::vector<glm::vec3>> closedFibersCP;
-    std::vector<std::vector<glm::vec3>> openFibersCP;
-    readBCC(resolver.Resolve("resources/fiber.bcc"), closedFibersCP, openFibersCP);
+    std::string filename = "resources/fiber.bcc";
+    if(argc > 1){
+        filename = argv[1];
+    }
 
-    // Merge all the curves into a single vector to draw all of them in a single drawcall
-    // This need to be replaced by the proper loading of the fiber data
+    fs::path filePath = resolver.Resolve(filename);
+    std::vector<fs::path> availableFiles = ListBCCFiles(resolver.Resolve("resources"));
+
     std::vector<glm::vec3> fibersVertices;
-    for (const auto& fiber : closedFibersCP)
-    {
-        for (const auto& cPoints : fiber)
-            fibersVertices.push_back(cPoints);
-        fibersVertices.push_back(fiber.front());
-    }
-    for (const auto& fiber : openFibersCP)
-        for (const auto& cPoints : fiber)
-            fibersVertices.push_back(cPoints);
-
-    uint32_t fibersVertexCount = fibersVertices.size();
-
     std::vector<uint32_t> fibersIndices;
-    for (size_t i = 0 ; i < fibersVertexCount - 3 ; i++)
-    {
-        fibersIndices.push_back(i);
-        fibersIndices.push_back(i+1);
-        fibersIndices.push_back(i+2);
-        fibersIndices.push_back(i+3);
-    }
-
-    // Send the fibers data to OpenGL
-    auto fibersVertexBuffer = VertexBuffer::Create(fibersVertices.data(), 
-                                                   fibersVertexCount * sizeof(glm::vec3));
-    fibersVertexBuffer->SetLayout({{"Position",  3, GL_FLOAT, false}});
-    auto fibersIndexBuffer = IndexBuffer::Create(fibersIndices.data(), 
-                                                 fibersIndices.size());
-    auto fibersVertexArray = VertexArray::Create();
-    fibersVertexArray->Bind();
-    fibersVertexArray->AddVertexBuffer(fibersVertexBuffer);
-    fibersVertexArray->SetIndexBuffer(fibersIndexBuffer);
-    fibersVertexArray->Unbind();
+    LoadBCCFile(filePath, fibersVertices, fibersIndices);
+    VertexArrayPtr fibersVertexArray = LoadBCCToOpenGL(fibersVertices, fibersIndices);
+    VertexBufferPtr fibersVertexBuffer = fibersVertexArray->GetVertexBuffers()[0];
+    IndexBufferPtr fibersIndexBuffer = fibersVertexArray->GetIndexBuffer();
 
     glPatchParameteri(GL_PATCH_VERTICES, 4);
 
@@ -196,39 +171,35 @@ int main(int argc, char *argv[])
         
         camera.Update();
  
+        if (enableSimulation && (showFibers || showClothMesh))
         {
             // Mesh animation
             const ProfilingScope scope("Mesh animation");  
-
-            if (enableSimulation && (showFibers || showClothMesh))
+            massSpringGravityWindSolver(engine, h);
+            for (int i = 0 ; i < engine.particles.size() ; ++i)
             {
-                massSpringGravityWindSolver(engine, h);
-                for (int i = 0 ; i < engine.particles.size() ; ++i)
-                {
-                    clothVertices[i].position = engine.particles[i].position;
-                }
-                Mesh::GenerateNormals(clothVertices, clothIndices);
-
-                clothVertexBuffer->Bind();
-                clothVertexBuffer->SetData(clothVertices.data(), 
-                                            clothVertices.size() * sizeof(Vertex));
-                clothVertexBuffer->Unbind();
+                clothVertices[i].position = engine.particles[i].position;
             }
+            Mesh::GenerateNormals(clothVertices, clothIndices);
+
+            clothVertexBuffer->Bind();
+            clothVertexBuffer->SetData(clothVertices.data(), 
+                                        clothVertices.size() * sizeof(Vertex));
+            clothVertexBuffer->Unbind();
         }
 
+            
+        if (wrap.IsInitialized() && showFibers)
         {
             // Fibers deformation
             const ProfilingScope scope("Fibers deformation");  
-            
-            if (wrap.IsInitialized() && showFibers)
-            {
-                wrap.Deform(fibersVertices, clothVertices, clothIndices);
-                fibersVertexBuffer->Bind();
-                fibersVertexBuffer->SetData(fibersVertices.data(), 
-                                            fibersVertexCount * sizeof(glm::vec3));
-                fibersVertexBuffer->Unbind();
-            }
-        }  
+
+            wrap.Deform(fibersVertices, clothVertices, clothIndices);
+            fibersVertexBuffer->Bind();
+            fibersVertexBuffer->SetData(fibersVertices.data(), 
+                                        fibersVertices.size() * sizeof(glm::vec3));
+            fibersVertexBuffer->Unbind();
+        }
 
         glClearColor(backgroundColor.r, backgroundColor.g, backgroundColor.b, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -378,6 +349,34 @@ int main(int argc, char *argv[])
                 
                 if (ImGui::CollapsingHeader("Fiber generation settings", ImGuiTreeNodeFlags_DefaultOpen))
                 {
+                    indentedLabel("Ply count :");
+                    ImGui::SameLine();
+                    ImGui::SetNextItemWidth((ImGui::GetWindowContentRegionWidth() - ImGui::GetCursorPosX()) * 0.75f);
+                    if (ImGui::BeginCombo("##FileChoiceCombo", filePath.filename().c_str()))
+                    {
+                        for (const auto& path : availableFiles)
+                        {
+                            if (ImGui::Selectable(path.filename().c_str(), filePath.filename() == path.filename()))
+                            {
+                                filePath = path;
+                                LoadBCCFile(filePath, fibersVertices, fibersIndices);
+                                fibersVertexBuffer->Bind();
+                                fibersVertexBuffer->SetData(fibersVertices.data(), 
+                                                            fibersVertices.size() * sizeof(glm::vec3));
+                                fibersVertexBuffer->Unbind();
+                                fibersIndexBuffer->Bind();
+                                fibersIndexBuffer->SetData(fibersIndices.data(), fibersIndices.size());
+                                fibersIndexBuffer->Unbind();
+                                if (wrap.IsInitialized())
+                                {
+                                    wrap.Initialize(fibersVertices, clothVertices, clothIndices);
+                                }
+                            }
+                        }
+
+                        ImGui::EndCombo();
+                    }
+
                     indentedLabel("Ply count :");
                     ImGui::SameLine();
                     if (ImGui::DragInt("##PlyCountDrag", &plyCount, 0.1f, 0, 10, 
