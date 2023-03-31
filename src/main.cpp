@@ -350,7 +350,7 @@ int main(int argc, char *argv[])
                 
                 if (ImGui::CollapsingHeader("Fiber generation settings", ImGuiTreeNodeFlags_DefaultOpen))
                 {
-                    indentedLabel("Ply count :");
+                    indentedLabel("File name :");
                     ImGui::SameLine();
                     ImGui::SetNextItemWidth((ImGui::GetWindowContentRegionWidth() - ImGui::GetCursorPosX()) * 0.75f);
                     if (ImGui::BeginCombo("##FileChoiceCombo", filePath.filename().c_str()))
