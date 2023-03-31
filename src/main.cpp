@@ -175,6 +175,7 @@ int main(int argc, char *argv[])
         {
             // Mesh animation
             const ProfilingScope scope("Mesh animation");  
+            
             massSpringGravityWindSolver(engine, h);
             for (int i = 0 ; i < engine.particles.size() ; ++i)
             {
@@ -476,7 +477,7 @@ int main(int argc, char *argv[])
                 {
                     indentedLabel("Enable simulation :");
                     ImGui::SameLine();
-                    if (ImGui::Checkbox("##EnableSimulationCB", &enableSimulation));
+                    if (ImGui::Checkbox("##EnableSimulationCB", &enableSimulation))
                     {
                         if (!wrap.IsInitialized())
                             wrap.Initialize(fibersVertices, clothVertices, clothIndices);

@@ -5,6 +5,7 @@
 #include <glm/gtx/string_cast.hpp>
 
 #include <omp.h>
+#include <iostream>
 
 
 WrapDeformer::WrapDeformer()
