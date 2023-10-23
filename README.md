@@ -2,6 +2,8 @@
 
 Implémentation du papier [Real-time Cloth Rendering with Fiber-level Detail](https://people.csail.mit.edu/kuiwu/rtfr.html) portant sur le rendu de fibres de textiles en temps réel. Ce projet est réalisé dans le cadre du Master 2 Sciences de l'Image de l'Université Gustave Eiffel. 
 
+[Lien vers la vidéo de démo](https://drive.google.com/file/d/1fXRfm8VVYQiQlAtiaFIic_FrY5VEQV0s/view?usp=sharing)
+
 # Dépendances :
 
 - [GLFW3 (3.3 stable)](https://github.com/glfw/glfw/tree/3.3-stable)
